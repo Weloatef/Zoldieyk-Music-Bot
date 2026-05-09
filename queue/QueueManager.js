@@ -16,8 +16,12 @@ const path                = require('path');
 const execFileAsync = promisify(execFile);
 
 // Railway (Linux) uses system binaries installed via nixpacks.toml
-const YTDLP_PATH  = 'yt-dlp';
-const FFMPEG_PATH = 'ffmpeg';
+const YTDLP_PATH = process.platform === 'win32'
+    ? path.join(__dirname, '..', 'yt-dlp.exe')
+    : path.join(__dirname, '..', 'yt-dlp');
+const FFMPEG_PATH = process.platform === 'win32'
+    ? path.join(__dirname, '..', 'ffmpeg.exe')
+    : 'ffmpeg';
 
 const queues = new Map();
 
