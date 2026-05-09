@@ -26,8 +26,13 @@ try {
 }
 
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
+// Force WebRTC over TCP fallback for restricted networks
+const { setDefaultResultOrder } = require('dns');
+setDefaultResultOrder('ipv4first');
 const fs   = require('fs');
 const path = require('path');
+
+
 
 // ── Validate required env vars ────────────────────────────────
 const required = ['BOT_TOKEN', 'MUSIC_CHANNEL_ID', 'CLIENT_ID', 'GUILD_ID'];

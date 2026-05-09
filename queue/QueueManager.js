@@ -61,6 +61,11 @@ class MusicQueue {
       guildId       : voiceChannel.guild.id,
       adapterCreator: voiceChannel.guild.voiceAdapterCreator,
       selfDeaf      : true,
+      debug         : true,  // ← add this
+    });
+
+    this.connection.on('stateChange', (oldState, newState) => {
+      console.log(`[VC State] ${oldState.status} -> ${newState.status}`);
     });
 
     // Subscribe immediately so player is ready when connection is
