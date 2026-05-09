@@ -2,6 +2,15 @@
 const { Events, EmbedBuilder } = require('discord.js');
 const MusicQueue               = require('../queue/MusicQueue');
 
+// Get the best connected Lavalink node in Shoukaku v4
+// (getIdealNode does NOT exist in v4 — iterate nodes map instead)
+function getNode(shoukaku) {
+  return [...shoukaku.nodes.values()]
+    .filter(n => n.state === 2) // 2 = CONNECTED
+    .sort((a, b) => a.penalties - b.penalties)
+    .shift() || null;
+}
+
 module.exports = {
   name: Events.MessageCreate,
 
@@ -20,10 +29,10 @@ module.exports = {
 
     const searching = await message.reply(`🔍 Searching for **${query}**...`);
 
-    // ── Lavalink node ─────────────────────────────────────────────────────────
-    const node = client.shoukaku.getIdealNode();
+    // ── Get a live Lavalink node ──────────────────────────────────────────────
+    const node = getNode(client.shoukaku);
     if (!node) {
-      return searching.edit('❌ No Lavalink nodes available. Try again in a moment.');
+      return searching.edit('❌ No Lavalink nodes available right now. Try again shortly.');
     }
 
     // ── Search ────────────────────────────────────────────────────────────────
@@ -64,19 +73,14 @@ module.exports = {
     let queue = client.queues.get(message.guildId);
 
     if (!queue) {
-      // Force-clean ANY stale Shoukaku state for this guild before joining.
-      // This is the exact API Shoukaku v4 exposes for full cleanup.
-      const hasStaleConnection = client.shoukaku.connections.has(message.guildId);
-      const hasStalePlayer     = client.shoukaku.players.has(message.guildId);
-      if (hasStaleConnection || hasStalePlayer) {
-        console.log('[VC] Stale Shoukaku state detected — force cleaning before join...');
-        try {
-          await client.shoukaku.leaveVoiceChannel(message.guildId);
-        } catch (_) {}
-        // Belt-and-suspenders: delete directly from both maps
+      // Clean any stale Shoukaku state for this guild before joining
+      const stale = client.shoukaku.connections.has(message.guildId)
+                 || client.shoukaku.players.has(message.guildId);
+      if (stale) {
+        console.log('[VC] Stale state found — cleaning before rejoin...');
+        try { await client.shoukaku.leaveVoiceChannel(message.guildId); } catch (_) {}
         client.shoukaku.connections.delete(message.guildId);
         client.shoukaku.players.delete(message.guildId);
-        // Small delay so Discord processes the leave before we rejoin
         await new Promise(r => setTimeout(r, 500));
       }
 
@@ -89,7 +93,6 @@ module.exports = {
         });
       } catch (err) {
         console.error('[VC Join Error]', err.message);
-        // Nuclear cleanup — clear both maps and tell user to retry
         client.shoukaku.connections.delete(message.guildId);
         client.shoukaku.players.delete(message.guildId);
         return searching.edit('❌ Could not join VC — please try again.');
@@ -113,15 +116,14 @@ module.exports = {
     } else {
       const wasPlaying = !!queue.current;
       await queue.addTrack(firstTrack);
-
       if (wasPlaying) {
         const embed = new EmbedBuilder()
           .setColor(0x5865F2)
           .setTitle('➕ Added to Queue')
           .setDescription(`**[${firstTrack.title}](${firstTrack.uri})**`)
           .addFields(
-            { name: 'Duration', value: firstTrack.duration,             inline: true },
-            { name: 'Position', value: `#${queue.tracks.length}`,       inline: true }
+            { name: 'Duration', value: firstTrack.duration,       inline: true },
+            { name: 'Position', value: `#${queue.tracks.length}`, inline: true }
           )
           .setThumbnail(firstTrack.thumbnail);
         await searching.edit({ content: '', embeds: [embed] });
@@ -134,9 +136,9 @@ module.exports = {
 
 function formatDuration(ms) {
   if (!ms) return 'Unknown';
-  const s = Math.floor(ms / 1000);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
+  const s   = Math.floor(ms / 1000);
+  const h   = Math.floor(s / 3600);
+  const m   = Math.floor((s % 3600) / 60);
   const sec = s % 60;
   if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
   return `${m}:${String(sec).padStart(2,'0')}`;
