@@ -10,10 +10,11 @@ class MusicQueue {
    * @param {TextChannel}    textChannel
    * @param {ShoukakuPlayer} player       — Shoukaku player already connected to VC
    */
-  constructor(guildId, textChannel, player) {
+  constructor(guildId, textChannel, player, client) {
     this.guildId     = guildId;
     this.textChannel = textChannel;
     this.player      = player;
+    this.client      = client; // stored so idle-timeout can clean both maps
     this.tracks      = [];   // upcoming tracks
     this.current     = null; // currently playing track
     this.paused      = false;
@@ -58,7 +59,7 @@ class MusicQueue {
     if (this.tracks.length === 0) {
       this.current = null;
       // Auto-disconnect after 2 minutes of silence
-      this._idleTimer = setTimeout(() => this.destroy(), 2 * 60 * 1000);
+      this._idleTimer = setTimeout(() => this.destroy(this.client), 2 * 60 * 1000);
       return;
     }
 
@@ -120,15 +121,18 @@ class MusicQueue {
   }
 
   // ── Clean up everything ────────────────────────────────────────────────────
-  async destroy() {
+  async destroy(client) {
     clearTimeout(this._idleTimer);
     this.tracks  = [];
     this.current = null;
     try {
       await this.player.connection.disconnect();
     } catch (_) {}
-    // Remove from global map (set in index.js)
-    // The caller (messageCreate / stop command) does client.queues.delete(guildId)
+    // Remove from Shoukaku's internal players map so the guild can rejoin later
+    if (client) {
+      client.shoukaku.players.delete(this.guildId);
+      client.queues.delete(this.guildId);
+    }
   }
 }
 

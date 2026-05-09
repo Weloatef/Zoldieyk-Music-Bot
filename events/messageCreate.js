@@ -75,7 +75,16 @@ module.exports = {
     let queue = client.queues.get(message.guildId);
 
     if (!queue) {
-      // Join voice and create a Shoukaku player
+      // If Shoukaku still holds a stale player for this guild, destroy it first
+      // (happens when bot was kicked/disconnected externally)
+      const stalePlayer = client.shoukaku.players.get(message.guildId);
+      if (stalePlayer) {
+        console.log('[VC] Cleaning up stale Shoukaku player before rejoining...');
+        try { await stalePlayer.connection.disconnect(); } catch (_) {}
+        client.shoukaku.players.delete(message.guildId);
+      }
+
+      // Join voice and create a fresh Shoukaku player
       let player;
       try {
         player = await client.shoukaku.joinVoiceChannel({
@@ -85,16 +94,20 @@ module.exports = {
         });
       } catch (err) {
         console.error('[VC Join Error]', err.message);
-        return searching.edit(`❌ Could not join your voice channel: ${err.message}`);
+        // Last-resort: nuke the player entry and tell user to retry
+        client.shoukaku.players.delete(message.guildId);
+        return searching.edit(`❌ Could not join VC — please try again in a moment.`);
       }
 
-      queue = new MusicQueue(message.guildId, message.channel, player);
+      queue = new MusicQueue(message.guildId, message.channel, player, client);
       client.queues.set(message.guildId, queue);
 
-      // Clean up from map when player disconnects
+      // Clean up map when player closes (kicked, /stop, idle timeout, etc.)
       player.on('closed', () => {
         client.queues.delete(message.guildId);
-        console.log(`[Queue] Cleaned up queue for guild ${message.guildId}`);
+        // Also ensure Shoukaku's own player map is clear
+        client.shoukaku.players.delete(message.guildId);
+        console.log(`[Queue] Cleaned up guild ${message.guildId}`);
       });
     }
 

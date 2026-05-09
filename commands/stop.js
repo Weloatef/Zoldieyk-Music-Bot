@@ -11,8 +11,7 @@ module.exports = {
     if (!queue) {
       return interaction.reply({ content: '❌ The bot is not active here.', ephemeral: true });
     }
-    await queue.destroy();
-    client.queues.delete(interaction.guildId);
+    await queue.destroy(client); // passes client so both maps are cleaned
     return interaction.reply('⏹️ Stopped and disconnected.');
   },
 };
