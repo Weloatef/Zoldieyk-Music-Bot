@@ -7,6 +7,24 @@ server.listen(process.env.PORT || 3000, () => {
   console.log(`[HTTP] Keepalive server listening on port ${process.env.PORT || 3000}`);
 });
 
+// Verify yt-dlp and ffmpeg are available at startup
+const { execSync } = require('child_process');
+const ytdlpPath = require('path').join(__dirname, 'yt-dlp');
+
+try {
+  const version = execSync(`${ytdlpPath} --version`).toString().trim();
+  console.log(`[yt-dlp] Found: ${version}`);
+} catch (e) {
+  console.error(`[yt-dlp] NOT FOUND at ${ytdlpPath}: ${e.message}`);
+}
+
+try {
+  const ffver = execSync('ffmpeg -version').toString().split('\n')[0];
+  console.log(`[ffmpeg] Found: ${ffver}`);
+} catch (e) {
+  console.error(`[ffmpeg] NOT FOUND: ${e.message}`);
+}
+
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs   = require('fs');
 const path = require('path');

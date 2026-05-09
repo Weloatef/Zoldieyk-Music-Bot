@@ -63,6 +63,9 @@ class MusicQueue {
       selfDeaf      : true,
     });
 
+    // Subscribe immediately so player is ready when connection is
+    this.connection.subscribe(this.player);
+
     this.connection.on(VoiceConnectionStatus.Disconnected, async () => {
       try {
         await Promise.race([
@@ -74,16 +77,13 @@ class MusicQueue {
       }
     });
 
-    this.connection.subscribe(this.player);
-
+    // Wait up to 60s — don't throw, just log and continue
+    // The connection may still work even if it doesn't reach "Ready" quickly
     try {
-      await entersState(this.connection, VoiceConnectionStatus.Ready, 30_000);
+      await entersState(this.connection, VoiceConnectionStatus.Ready, 60_000);
       console.log('[VC] Ready');
     } catch {
-      console.error('[VC] Failed to become ready');
-      this.textChannel.send('❌ Could not connect to the voice channel.');
-      this.destroy();
-      throw new Error('VC not ready');
+      console.warn('[VC] Did not reach Ready state in 60s — attempting playback anyway');
     }
   }
 
