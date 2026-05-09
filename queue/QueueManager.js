@@ -25,6 +25,20 @@ const FFMPEG_PATH = process.platform === 'win32'
 
 const queues = new Map();
 
+const cookiesPath = path.join(__dirname, '..', 'cookies.txt');
+const ytdlpArgs = [
+  this.current.url,
+  '-f', 'bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio',
+  '--get-url',
+  '--no-playlist',
+];
+
+if (require('fs').existsSync(cookiesPath)) {
+  ytdlpArgs.push('--cookies', cookiesPath);
+}
+
+const { stdout } = await execFileAsync(YTDLP_PATH, ytdlpArgs);
+
 class MusicQueue {
   constructor(guildId, textChannel) {
     this.guildId     = guildId;

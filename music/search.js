@@ -9,6 +9,20 @@ const YTDLP = process.platform === 'win32'
   ? path.join(__dirname, '..', 'yt-dlp.exe')
   : path.join(__dirname, '..', 'yt-dlp');
 
+const cookiesPath = path.join(__dirname, '..', 'cookies.txt');
+const args = [
+  target,
+  '--dump-single-json',
+  '--no-warnings',
+  '--no-playlist',
+  '--quiet',
+];
+
+if (require('fs').existsSync(cookiesPath)) {
+  args.push('--cookies', cookiesPath);
+}
+
+const { stdout } = await execFileAsync(YTDLP, args);
 async function searchTrack(query, requester) {
   try {
     const isUrl  = /^https?:\/\//.test(query);

@@ -38,6 +38,13 @@ if (!require('fs').existsSync(ytdlpPath)) {
   console.log('[yt-dlp] Already exists, skipping download');
 }
 
+// Write YouTube cookies from env variable to file
+const cookiesPath = require('path').join(__dirname, 'cookies.txt');
+if (process.env.YOUTUBE_COOKIES) {
+  require('fs').writeFileSync(cookiesPath, process.env.YOUTUBE_COOKIES);
+  console.log('[Cookies] Written cookies.txt from environment');
+} 
+
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 // Force WebRTC over TCP fallback for restricted networks
 const { setDefaultResultOrder } = require('dns');
