@@ -14,8 +14,10 @@ const { promisify }       = require('util');
 const path                = require('path');
 
 const execFileAsync = promisify(execFile);
-const YTDLP_PATH  = process.platform === 'win32' ? path.join(__dirname, '..', 'yt-dlp.exe') : 'yt-dlp';
-const FFMPEG_PATH = process.platform === 'win32' ? path.join(__dirname, '..', 'ffmpeg.exe') : 'ffmpeg';
+
+// Railway (Linux) uses system binaries installed via nixpacks.toml
+const YTDLP_PATH  = 'yt-dlp';
+const FFMPEG_PATH = 'ffmpeg';
 
 const queues = new Map();
 
@@ -70,16 +72,20 @@ class MusicQueue {
 
     this.connection.subscribe(this.player);
 
-    entersState(this.connection, VoiceConnectionStatus.Ready, 60_000)
-      .then(() => console.log('[VC] Ready'))
-      .catch(() => {
-        console.error('[VC] Failed to become ready');
-        this.textChannel.send('Could not connect to the voice channel.');
-        this.destroy();
-      });
+    // Wait for ready — on Railway this should be fast (no UDP firewall)
+    try {
+      await entersState(this.connection, VoiceConnectionStatus.Ready, 30_000);
+      console.log('[VC] Ready');
+    } catch {
+      console.error('[VC] Failed to become ready');
+      this.textChannel.send('❌ Could not connect to the voice channel.');
+      this.destroy();
+      throw new Error('VC not ready');
+    }
   }
 
   async addTrack(track) {
+    if (!track) return;
     this.tracks.push(track);
     if (this.player.state.status === AudioPlayerStatus.Idle) {
       await this._playNext();
@@ -99,11 +105,10 @@ class MusicQueue {
     console.log(`[Playing] ${this.current.title}`);
 
     try {
-      // Get direct stream URL from yt-dlp
-      // Prefer m4a (AAC) — easiest for ffmpeg to decode on Windows
+      // Step 1: get direct audio URL via yt-dlp
       const { stdout } = await execFileAsync(YTDLP_PATH, [
         this.current.url,
-        '-f', 'bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio',
+        '-f', 'bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio',
         '--get-url',
         '--no-playlist',
       ]);
@@ -112,20 +117,19 @@ class MusicQueue {
       if (!streamUrl) throw new Error('No stream URL returned');
       console.log('[Stream URL obtained]');
 
-      // Use ffmpeg with ogg/opus OUTPUT — Discord handles this natively
-      // This avoids the s16le pipe:1 Windows bug entirely
+      // Step 2: pipe stream URL through ffmpeg → opus → discord
+      // On Linux pipes work correctly, no temp file needed
       const ffmpeg = spawn(FFMPEG_PATH, [
         '-reconnect',           '1',
         '-reconnect_streamed',  '1',
         '-reconnect_delay_max', '5',
         '-i',                   streamUrl,
-        '-map',                 '0:a:0',
+        '-vn',
         '-acodec',              'libopus',
         '-f',                   'opus',
         '-ar',                  '48000',
         '-ac',                  '2',
         '-b:a',                 '128k',
-        '-vbr',                 'on',
         'pipe:1',
       ], { stdio: ['ignore', 'pipe', 'pipe'] });
 
@@ -134,12 +138,16 @@ class MusicQueue {
         if (msg.toLowerCase().includes('error')) console.error('[ffmpeg]', msg);
       });
 
-      ffmpeg.on('error', err => console.error('[ffmpeg spawn]', err.message));
-      ffmpeg.on('close', code => {
-        if (code !== 0) console.warn(`[ffmpeg] exited ${code}`);
+      ffmpeg.on('error', err => {
+        console.error('[ffmpeg spawn]', err.message);
+        this.textChannel.send(`❌ ffmpeg error — skipping.`);
+        this._playNext();
       });
 
-      // StreamType.OggOpus = Discord's native format, no further decoding needed
+      ffmpeg.on('close', code => {
+        if (code !== 0) console.warn(`[ffmpeg] exited with code ${code}`);
+      });
+
       const resource = createAudioResource(ffmpeg.stdout, {
         inputType: StreamType.OggOpus,
       });
@@ -149,7 +157,7 @@ class MusicQueue {
 
     } catch (err) {
       console.error(`[Stream Error] ${err.message}`);
-      this.textChannel.send(`Could not stream **${this.current.title}** — skipping.`);
+      this.textChannel.send(`❌ Could not stream **${this.current.title}** — skipping.`);
       this._playNext();
     }
   }
@@ -160,7 +168,7 @@ class MusicQueue {
 
     const embed = new EmbedBuilder()
       .setColor(0x1DB954)
-      .setTitle('Now Playing')
+      .setTitle('🎵 Now Playing')
       .setDescription(`**[${this.current.title}](${this.current.url})**`)
       .addFields(
         { name: 'Duration',     value: this.current.duration  || 'Unknown', inline: true },

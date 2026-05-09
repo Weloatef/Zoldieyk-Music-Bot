@@ -36,7 +36,7 @@ module.exports = {
     const track = await searchTrack(query, message.author.username);
 
     if (!track) {
-      console.log('[DEBUG] Track found:', track?.title, '| User VC:', voiceChannel?.id);
+    return searching.edit(`❌ No results found for **${query}**.`);
     }
 
     // ── Get or create this guild's queue ──────────────────
