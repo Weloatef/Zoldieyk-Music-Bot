@@ -1,69 +1,30 @@
+// index.js — Discord Music Bot (Lavalink/Shoukaku edition)
+// Audio goes through Lavalink over WebSocket (TCP), bypassing UDP blocking on Railway/Render.
+
 require('dotenv').config();
 
-// ── Keepalive HTTP server — must start before anything else on Railway ──
+// ── Keepalive HTTP server (required for Railway & Render web services) ──────
 const http = require('http');
-const server = http.createServer((req, res) => res.end('OK'));
-server.listen(process.env.PORT || 3000, () => {
-  console.log(`[HTTP] Keepalive server listening on port ${process.env.PORT || 3000}`);
+http.createServer((req, res) => res.end('OK')).listen(process.env.PORT || 3000, () => {
+  console.log(`[HTTP] Keepalive listening on port ${process.env.PORT || 3000}`);
 });
 
-// Verify yt-dlp and ffmpeg are available at startup
-const { execSync } = require('child_process');
-const ytdlpPath = require('path').join(__dirname, 'yt-dlp');
-
-try {
-  const version = execSync(`${ytdlpPath} --version`).toString().trim();
-  console.log(`[yt-dlp] Found: ${version}`);
-} catch (e) {
-  console.error(`[yt-dlp] NOT FOUND at ${ytdlpPath}: ${e.message}`);
-}
-
-try {
-  const ffver = execSync('ffmpeg -version').toString().split('\n')[0];
-  console.log(`[ffmpeg] Found: ${ffver}`);
-} catch (e) {
-  console.error(`[ffmpeg] NOT FOUND: ${e.message}`);
-}
-
-
-if (!require('fs').existsSync(ytdlpPath)) {
-  console.log('[yt-dlp] Downloading...');
-  try {
-    execSync(`wget -q https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O ${ytdlpPath} && chmod +x ${ytdlpPath}`);
-    console.log('[yt-dlp] Downloaded successfully');
-  } catch (e) {
-    console.error('[yt-dlp] Download failed:', e.message);
-  }
-} else {
-  console.log('[yt-dlp] Already exists, skipping download');
-}
-
-// Write YouTube cookies from env variable to file
-const cookiesPath = require('path').join(__dirname, 'cookies.txt');
-if (process.env.YOUTUBE_COOKIES) {
-  require('fs').writeFileSync(cookiesPath, process.env.YOUTUBE_COOKIES);
-  console.log('[Cookies] Written cookies.txt from environment');
-} 
-
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
-// Force WebRTC over TCP fallback for restricted networks
-const { setDefaultResultOrder } = require('dns');
-setDefaultResultOrder('ipv4first');
-const fs   = require('fs');
-const path = require('path');
-
-
-
-// ── Validate required env vars ────────────────────────────────
-const required = ['BOT_TOKEN', 'MUSIC_CHANNEL_ID', 'CLIENT_ID', 'GUILD_ID'];
-for (const key of required) {
+// ── Validate required env vars ───────────────────────────────────────────────
+const REQUIRED = ['BOT_TOKEN', 'MUSIC_CHANNEL_ID', 'CLIENT_ID', 'GUILD_ID',
+                  'LAVALINK_HOST', 'LAVALINK_PORT', 'LAVALINK_PASSWORD'];
+for (const key of REQUIRED) {
   if (!process.env[key]) {
     console.error(`❌ Missing environment variable: ${key}`);
     process.exit(1);
   }
 }
 
-// ── Create the Discord client ─────────────────────────────────
+const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { Shoukaku, Connectors }                  = require('shoukaku');
+const fs   = require('fs');
+const path = require('path');
+
+// ── Discord client ───────────────────────────────────────────────────────────
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -73,36 +34,60 @@ const client = new Client({
   ],
 });
 
-// ── Load Slash Commands ───────────────────────────────────────
-client.commands = new Collection();
-const cmdDir   = path.join(__dirname, 'commands');
-const cmdFiles = fs.readdirSync(cmdDir).filter(f => f.endsWith('.js'));
+// ── Lavalink nodes config ────────────────────────────────────────────────────
+const LavalinkNodes = [
+  {
+    name    : 'Main',
+    url     : `${process.env.LAVALINK_HOST}:${process.env.LAVALINK_PORT}`,
+    auth    : process.env.LAVALINK_PASSWORD,
+    secure  : process.env.LAVALINK_SECURE === 'true',
+  },
+];
 
-for (const file of cmdFiles) {
+// ── Shoukaku (Lavalink client) ───────────────────────────────────────────────
+const shoukaku = new Shoukaku(new Connectors.DiscordJS(client), LavalinkNodes, {
+  moveOnDisconnect: true,
+  resumable       : false,
+  resumableTimeout: 30,
+  reconnectTries  : 3,
+  restTimeout     : 10000,
+});
+
+shoukaku.on('ready',  (name)        => console.log(`[Lavalink] Node "${name}" connected ✅`));
+shoukaku.on('error',  (name, error) => console.error(`[Lavalink] Node "${name}" error:`, error.message));
+shoukaku.on('close',  (name, code, reason) => console.warn(`[Lavalink] Node "${name}" closed (${code}): ${reason}`));
+shoukaku.on('disconnect', (name, players, moved) => {
+  console.warn(`[Lavalink] Node "${name}" disconnected. Players: ${players.length}, moved: ${moved}`);
+});
+
+// ── Expose shoukaku on client so events/commands can reach it ────────────────
+client.shoukaku = shoukaku;
+client.queues   = new Map(); // guildId → MusicQueue instance
+
+// ── Load slash commands ──────────────────────────────────────────────────────
+client.commands = new Collection();
+const cmdDir    = path.join(__dirname, 'commands');
+fs.readdirSync(cmdDir).filter(f => f.endsWith('.js')).forEach(file => {
   const cmd = require(path.join(cmdDir, file));
   client.commands.set(cmd.data.name, cmd);
   console.log(`  📌 Command loaded: /${cmd.data.name}`);
-}
-
-// ── Load Events ───────────────────────────────────────────────
-const evtDir   = path.join(__dirname, 'events');
-const evtFiles = fs.readdirSync(evtDir).filter(f => f.endsWith('.js'));
-
-for (const file of evtFiles) {
-  const event = require(path.join(evtDir, file));
-  if (event.once) {
-    client.once(event.name, (...args) => event.execute(...args));
-  } else {
-    client.on(event.name, (...args) => event.execute(...args));
-  }
-  console.log(`  📡 Event loaded: ${event.name}`);
-}
-
-// ── Handle unhandled rejections so the process doesn't crash ──
-process.on('unhandledRejection', err => {
-  console.error('[Unhandled Rejection]', err);
 });
 
-// ── Login ─────────────────────────────────────────────────────
+// ── Load events ──────────────────────────────────────────────────────────────
+const evtDir = path.join(__dirname, 'events');
+fs.readdirSync(evtDir).filter(f => f.endsWith('.js')).forEach(file => {
+  const event = require(path.join(evtDir, file));
+  if (event.once) {
+    client.once(event.name, (...args) => event.execute(...args, client));
+  } else {
+    client.on(event.name,   (...args) => event.execute(...args, client));
+  }
+  console.log(`  📡 Event loaded: ${event.name}`);
+});
+
+// ── Global error safety net ──────────────────────────────────────────────────
+process.on('unhandledRejection', err => console.error('[Unhandled Rejection]', err));
+
+// ── Login ────────────────────────────────────────────────────────────────────
 console.log('\n🚀 Connecting to Discord...\n');
 client.login(process.env.BOT_TOKEN);

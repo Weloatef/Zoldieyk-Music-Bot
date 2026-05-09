@@ -2,7 +2,7 @@ services:
   - type: web
     name: music-bot
     env: node
-    buildCommand: npm install && wget -q https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O ./yt-dlp && chmod +x ./yt-dlp
+    buildCommand: npm install
     startCommand: node index.js
     envVars:
       - key: BOT_TOKEN
@@ -13,3 +13,11 @@ services:
         sync: false
       - key: MUSIC_CHANNEL_ID
         sync: false
+      - key: LAVALINK_HOST
+        value: lavalinkv4.serenetia.com
+      - key: LAVALINK_PORT
+        value: "443"
+      - key: LAVALINK_PASSWORD
+        value: "https://seretia.link/discord"
+      - key: LAVALINK_SECURE
+        value: "true"
