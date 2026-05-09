@@ -111,7 +111,7 @@ class MusicQueue {
       // Build yt-dlp args with optional cookies
       const ytArgs = [
         this.current.url,
-        '-f', 'bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio',
+        '-f', 'bestaudio/best',
         '--get-url',
         '--no-playlist',
       ];

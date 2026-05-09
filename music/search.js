@@ -6,7 +6,7 @@ const path = require('path');
 
 const execFileAsync = promisify(execFile);
 
-const YTDLP       = process.platform === 'win32'
+const YTDLP        = process.platform === 'win32'
   ? path.join(__dirname, '..', 'yt-dlp.exe')
   : path.join(__dirname, '..', 'yt-dlp');
 
@@ -23,6 +23,7 @@ async function searchTrack(query, requester) {
       '--no-warnings',
       '--no-playlist',
       '--quiet',
+      // No -f format flag here — just get video info, not a stream
     ];
 
     if (fs.existsSync(COOKIES_PATH)) {
@@ -30,7 +31,6 @@ async function searchTrack(query, requester) {
     }
 
     const { stdout } = await execFileAsync(YTDLP, args);
-
     const info  = JSON.parse(stdout);
     const video = info.entries ? info.entries[0] : info;
     if (!video) return null;
