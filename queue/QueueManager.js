@@ -11,33 +11,22 @@ const {
 } = require('@discordjs/voice');
 const { execFile, spawn } = require('child_process');
 const { promisify }       = require('util');
+const fs                  = require('fs');
 const path                = require('path');
 
 const execFileAsync = promisify(execFile);
 
-const YTDLP_PATH = process.platform === 'win32'
+const YTDLP_PATH   = process.platform === 'win32'
   ? path.join(__dirname, '..', 'yt-dlp.exe')
   : path.join(__dirname, '..', 'yt-dlp');
 
-const FFMPEG_PATH = process.platform === 'win32'
+const FFMPEG_PATH  = process.platform === 'win32'
   ? path.join(__dirname, '..', 'ffmpeg.exe')
   : 'ffmpeg';
 
+const COOKIES_PATH = path.join(__dirname, '..', 'cookies.txt');
+
 const queues = new Map();
-
-const cookiesPath = path.join(__dirname, '..', 'cookies.txt');
-const ytdlpArgs = [
-  this.current.url,
-  '-f', 'bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio',
-  '--get-url',
-  '--no-playlist',
-];
-
-if (require('fs').existsSync(cookiesPath)) {
-  ytdlpArgs.push('--cookies', cookiesPath);
-}
-
-const { stdout } = await execFileAsync(YTDLP_PATH, ytdlpArgs);
 
 class MusicQueue {
   constructor(guildId, textChannel) {
@@ -75,14 +64,8 @@ class MusicQueue {
       guildId       : voiceChannel.guild.id,
       adapterCreator: voiceChannel.guild.voiceAdapterCreator,
       selfDeaf      : true,
-      debug         : true,  // ← add this
     });
 
-    this.connection.on('stateChange', (oldState, newState) => {
-      console.log(`[VC State] ${oldState.status} -> ${newState.status}`);
-    });
-
-    // Subscribe immediately so player is ready when connection is
     this.connection.subscribe(this.player);
 
     this.connection.on(VoiceConnectionStatus.Disconnected, async () => {
@@ -96,8 +79,6 @@ class MusicQueue {
       }
     });
 
-    // Wait up to 60s — don't throw, just log and continue
-    // The connection may still work even if it doesn't reach "Ready" quickly
     try {
       await entersState(this.connection, VoiceConnectionStatus.Ready, 60_000);
       console.log('[VC] Ready');
@@ -127,14 +108,19 @@ class MusicQueue {
     console.log(`[Playing] ${this.current.title}`);
 
     try {
-      const { stdout } = await execFileAsync(YTDLP_PATH, [
+      // Build yt-dlp args with optional cookies
+      const ytArgs = [
         this.current.url,
         '-f', 'bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio',
         '--get-url',
         '--no-playlist',
-      ]);
+      ];
+      if (fs.existsSync(COOKIES_PATH)) {
+        ytArgs.push('--cookies', COOKIES_PATH);
+      }
 
-      const streamUrl = stdout.trim().split('\n')[0];
+      const { stdout } = await execFileAsync(YTDLP_PATH, ytArgs);
+      const streamUrl  = stdout.trim().split('\n')[0];
       if (!streamUrl) throw new Error('No stream URL returned');
       console.log('[Stream URL obtained]');
 

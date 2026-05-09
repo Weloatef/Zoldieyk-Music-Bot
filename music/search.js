@@ -1,40 +1,35 @@
 // music/search.js
 const { execFile } = require('child_process');
 const { promisify } = require('util');
+const fs   = require('fs');
 const path = require('path');
 
 const execFileAsync = promisify(execFile);
 
-const YTDLP = process.platform === 'win32'
+const YTDLP       = process.platform === 'win32'
   ? path.join(__dirname, '..', 'yt-dlp.exe')
   : path.join(__dirname, '..', 'yt-dlp');
 
-const cookiesPath = path.join(__dirname, '..', 'cookies.txt');
-const args = [
-  target,
-  '--dump-single-json',
-  '--no-warnings',
-  '--no-playlist',
-  '--quiet',
-];
+const COOKIES_PATH = path.join(__dirname, '..', 'cookies.txt');
 
-if (require('fs').existsSync(cookiesPath)) {
-  args.push('--cookies', cookiesPath);
-}
-
-const { stdout } = await execFileAsync(YTDLP, args);
 async function searchTrack(query, requester) {
   try {
     const isUrl  = /^https?:\/\//.test(query);
     const target = isUrl ? query : `ytsearch1:${query}`;
 
-    const { stdout } = await execFileAsync(YTDLP, [
+    const args = [
       target,
       '--dump-single-json',
       '--no-warnings',
       '--no-playlist',
       '--quiet',
-    ]);
+    ];
+
+    if (fs.existsSync(COOKIES_PATH)) {
+      args.push('--cookies', COOKIES_PATH);
+    }
+
+    const { stdout } = await execFileAsync(YTDLP, args);
 
     const info  = JSON.parse(stdout);
     const video = info.entries ? info.entries[0] : info;
