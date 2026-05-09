@@ -9,7 +9,7 @@ module.exports = {
   async execute(interaction, client) {
     const queue = client.queues.get(interaction.guildId);
     if (!queue?.current) {
-      return interaction.reply({ content: '🔇 Nothing is playing right now.', ephemeral: true });
+      return interaction.reply({ content: '🔇 Nothing is playing right now.', flags: 64 });
     }
 
     const t = queue.current;

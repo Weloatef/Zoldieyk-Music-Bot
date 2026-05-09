@@ -9,7 +9,7 @@ module.exports = {
   async execute(interaction, client) {
     const queue = client.queues.get(interaction.guildId);
     if (!queue?.current) {
-      return interaction.reply({ content: '❌ Nothing is playing.', ephemeral: true });
+      return interaction.reply({ content: '❌ Nothing is playing.', flags: 64 });
     }
     const title = queue.current.title;
     queue.skip();

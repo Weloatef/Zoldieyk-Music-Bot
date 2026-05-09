@@ -9,7 +9,7 @@ module.exports = {
   async execute(interaction, client) {
     const queue = client.queues.get(interaction.guildId);
     if (!queue || (!queue.current && queue.tracks.length === 0)) {
-      return interaction.reply({ content: '📭 The queue is empty.', ephemeral: true });
+      return interaction.reply({ content: '📭 The queue is empty.', flags: 64 });
     }
 
     const upcoming = queue.tracks.slice(0, 10);

@@ -9,9 +9,9 @@ module.exports = {
   async execute(interaction, client) {
     const queue = client.queues.get(interaction.guildId);
     if (!queue) {
-      return interaction.reply({ content: '❌ The bot is not active here.', ephemeral: true });
+      return interaction.reply({ content: '❌ The bot is not active here.', flags: 64 });
     }
-    await queue.destroy(client); // passes client so both maps are cleaned
+    await queue.destroy(); // client already stored on queue
     return interaction.reply('⏹️ Stopped and disconnected.');
   },
 };
