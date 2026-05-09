@@ -1,0 +1,6 @@
+node_modules/
+.env
+*.mp3
+*.pcm
+yt-dlp.exe
+ffmpeg.exe

@@ -1,0 +1,25 @@
+{
+  "name": "discord-music-bot",
+  "version": "1.0.0",
+  "description": "Auto-search music bot for Discord — type a song, it plays.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "@discordjs/voice": "^0.17.0",
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.4.5",
+    "ffmpeg-static": "^5.2.0",
+    "mediaplex": "^1.0.0",
+    "opusscript": "^0.0.8",
+    "yt-dlp-exec": "^1.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
