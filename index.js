@@ -1,20 +1,21 @@
-// index.js
-// ─────────────────────────────────────────────────────────────
-//  Entry point. Loads all events and commands, then logs in.
-// ─────────────────────────────────────────────────────────────
-
 require('dotenv').config();
+
+// ── Keepalive HTTP server — must start before anything else on Railway ──
+const http = require('http');
+const server = http.createServer((req, res) => res.end('OK'));
+server.listen(process.env.PORT || 3000, () => {
+  console.log(`[HTTP] Keepalive server listening on port ${process.env.PORT || 3000}`);
+});
 
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs   = require('fs');
 const path = require('path');
 
-// ── Validate required env vars before anything else ──────────
+// ── Validate required env vars ────────────────────────────────
 const required = ['BOT_TOKEN', 'MUSIC_CHANNEL_ID', 'CLIENT_ID', 'GUILD_ID'];
 for (const key of required) {
   if (!process.env[key]) {
     console.error(`❌ Missing environment variable: ${key}`);
-    console.error('   Copy .env.example → .env and fill in the values.');
     process.exit(1);
   }
 }
@@ -24,8 +25,8 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,   // Required to read message text
-    GatewayIntentBits.GuildVoiceStates, // Required to join voice channels
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildVoiceStates,
   ],
 });
 
@@ -46,7 +47,6 @@ const evtFiles = fs.readdirSync(evtDir).filter(f => f.endsWith('.js'));
 
 for (const file of evtFiles) {
   const event = require(path.join(evtDir, file));
-
   if (event.once) {
     client.once(event.name, (...args) => event.execute(...args));
   } else {
@@ -55,10 +55,11 @@ for (const file of evtFiles) {
   console.log(`  📡 Event loaded: ${event.name}`);
 }
 
-// ── Login ─────────────────────────────────────────────────────
-// Keep Railway alive
-const http = require('http');
-http.createServer((req, res) => res.end('Bot is running!')).listen(process.env.PORT || 3000);
+// ── Handle unhandled rejections so the process doesn't crash ──
+process.on('unhandledRejection', err => {
+  console.error('[Unhandled Rejection]', err);
+});
 
+// ── Login ─────────────────────────────────────────────────────
 console.log('\n🚀 Connecting to Discord...\n');
 client.login(process.env.BOT_TOKEN);
