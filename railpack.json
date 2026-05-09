@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.railpack.com",
   "deploy": {
-    "startCommand": "curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o ./yt-dlp && chmod +x ./yt-dlp && node index.js",
-    "aptPackages": ["ffmpeg"]
+    "startCommand": "wget -q https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O ./yt-dlp && chmod +x ./yt-dlp && node index.js",
+    "aptPackages": ["ffmpeg", "wget"]
   },
   "packages": {
     "python": "3"
