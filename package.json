@@ -4,7 +4,7 @@
   "description": "Auto-search music bot for Discord — type a song, it plays.",
   "main": "index.js",
   "scripts": {
-    "start": "curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o ./yt-dlp && chmod +x ./yt-dlp && ffmpeg -version && node index.js",
+    "start": "node index.js",
     "dev": "nodemon index.js"
   },
   "dependencies": {

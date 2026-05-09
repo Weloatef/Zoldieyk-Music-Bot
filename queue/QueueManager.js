@@ -15,13 +15,13 @@ const path                = require('path');
 
 const execFileAsync = promisify(execFile);
 
-// Railway (Linux) uses system binaries installed via nixpacks.toml
 const YTDLP_PATH = process.platform === 'win32'
-    ? path.join(__dirname, '..', 'yt-dlp.exe')
-    : path.join(__dirname, '..', 'yt-dlp');
+  ? path.join(__dirname, '..', 'yt-dlp.exe')
+  : path.join(__dirname, '..', 'yt-dlp');
+
 const FFMPEG_PATH = process.platform === 'win32'
-    ? path.join(__dirname, '..', 'ffmpeg.exe')
-    : 'ffmpeg';
+  ? path.join(__dirname, '..', 'ffmpeg.exe')
+  : 'ffmpeg';
 
 const queues = new Map();
 
@@ -76,7 +76,6 @@ class MusicQueue {
 
     this.connection.subscribe(this.player);
 
-    // Wait for ready — on Railway this should be fast (no UDP firewall)
     try {
       await entersState(this.connection, VoiceConnectionStatus.Ready, 30_000);
       console.log('[VC] Ready');
@@ -109,7 +108,6 @@ class MusicQueue {
     console.log(`[Playing] ${this.current.title}`);
 
     try {
-      // Step 1: get direct audio URL via yt-dlp
       const { stdout } = await execFileAsync(YTDLP_PATH, [
         this.current.url,
         '-f', 'bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio',
@@ -121,8 +119,6 @@ class MusicQueue {
       if (!streamUrl) throw new Error('No stream URL returned');
       console.log('[Stream URL obtained]');
 
-      // Step 2: pipe stream URL through ffmpeg → opus → discord
-      // On Linux pipes work correctly, no temp file needed
       const ffmpeg = spawn(FFMPEG_PATH, [
         '-reconnect',           '1',
         '-reconnect_streamed',  '1',
@@ -144,7 +140,6 @@ class MusicQueue {
 
       ffmpeg.on('error', err => {
         console.error('[ffmpeg spawn]', err.message);
-        this.textChannel.send(`❌ ffmpeg error — skipping.`);
         this._playNext();
       });
 
