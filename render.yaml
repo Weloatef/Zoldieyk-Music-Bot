@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: music-bot
+    env: node
+    buildCommand: npm install && wget -q https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O ./yt-dlp && chmod +x ./yt-dlp
+    startCommand: node index.js
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: CLIENT_ID
+        sync: false
+      - key: GUILD_ID
+        sync: false
+      - key: MUSIC_CHANNEL_ID
+        sync: false

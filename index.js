@@ -25,6 +25,19 @@ try {
   console.error(`[ffmpeg] NOT FOUND: ${e.message}`);
 }
 
+
+if (!require('fs').existsSync(ytdlpPath)) {
+  console.log('[yt-dlp] Downloading...');
+  try {
+    execSync(`wget -q https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O ${ytdlpPath} && chmod +x ${ytdlpPath}`);
+    console.log('[yt-dlp] Downloaded successfully');
+  } catch (e) {
+    console.error('[yt-dlp] Download failed:', e.message);
+  }
+} else {
+  console.log('[yt-dlp] Already exists, skipping download');
+}
+
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 // Force WebRTC over TCP fallback for restricted networks
 const { setDefaultResultOrder } = require('dns');
