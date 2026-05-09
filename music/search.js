@@ -20,10 +20,11 @@ async function searchTrack(query, requester) {
     const args = [
       target,
       '--dump-single-json',
+      '--skip-download',
       '--no-warnings',
       '--no-playlist',
       '--quiet',
-      // No -f format flag here — just get video info, not a stream
+      '--extractor-args', 'youtube:skip=dash,hls',
     ];
 
     if (fs.existsSync(COOKIES_PATH)) {
