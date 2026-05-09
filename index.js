@@ -56,5 +56,9 @@ for (const file of evtFiles) {
 }
 
 // ── Login ─────────────────────────────────────────────────────
+// Keep Railway alive
+const http = require('http');
+http.createServer((req, res) => res.end('Bot is running!')).listen(process.env.PORT || 3000);
+
 console.log('\n🚀 Connecting to Discord...\n');
 client.login(process.env.BOT_TOKEN);
