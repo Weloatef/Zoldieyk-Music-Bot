@@ -14,8 +14,8 @@ const { promisify }       = require('util');
 const path                = require('path');
 
 const execFileAsync = promisify(execFile);
-const YTDLP_PATH  = path.join(__dirname, '..', 'yt-dlp.exe');
-const FFMPEG_PATH = path.join(__dirname, '..', 'ffmpeg.exe');
+const YTDLP_PATH  = process.platform === 'win32' ? path.join(__dirname, '..', 'yt-dlp.exe') : 'yt-dlp';
+const FFMPEG_PATH = process.platform === 'win32' ? path.join(__dirname, '..', 'ffmpeg.exe') : 'ffmpeg';
 
 const queues = new Map();
 

@@ -4,7 +4,7 @@ const path = require('path');
 const util = require('util');
 const execFileAsync = util.promisify(execFile);
 
-const YTDLP = path.join(__dirname, '..', 'yt-dlp.exe');
+const YTDLP = process.platform === 'win32' ? path.join(__dirname, '..', 'yt-dlp.exe') : 'yt-dlp';
 
 async function searchTrack(query, requester) {
   try {
