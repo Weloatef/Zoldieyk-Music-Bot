@@ -215,34 +215,49 @@ class MusicQueue {
 
       // ---------- LANGUAGE DETECTION ----------
       const detectLanguage = (text) => {
-        if (/[\u0600-\u06FF]/.test(text)) return 'ar'; // Arabic
-        if (/[ñáéíóúü]/i.test(text)) return 'es';       // Spanish
-        if (/[à-ÿ]/i.test(text)) return 'fr';          // French
-        return 'en';                                   // English default
+        if (/[ -]/.test(text) && /[\u0600-\u06FF]/.test(text)) return 'ar';
+        if (/\b(que|como|para|porque|muy|mas|más|hola|adios|canción|canciones|esta|estas|esta|está)\b/i.test(text) || /[ñáéíóúü¿¡]/i.test(text)) return 'es';
+        if (/[àâçéèêëîïôûùœæ]/i.test(text)) return 'fr';
+        return 'other';
       };
 
       const currentLang = detectLanguage(this.current.title);
 
-      // ---------- ARTIST ----------
-      let artist = '';
-      if (clean.includes(' - ')) {
-        artist = clean.split(' - ')[0].trim();
-      } else {
-        artist = clean.split(' ').slice(0, 2).join(' ');
-      }
+      // ---------- ARTIST / SONG TITLE EXTRACTION ----------
+      const splitTrack = (text) => {
+        const cleaned = text
+          .replace(/\s*\|\s*/g, ' - ')
+          .replace(/\s*:\s*/g, ' - ')
+          .trim();
+
+        const byMatch = cleaned.match(/(.+?)\s+by\s+(.+)/i);
+        if (byMatch) {
+          return { artist: byMatch[2].trim(), title: byMatch[1].trim() };
+        }
+
+        const parts = cleaned.split(' - ');
+        if (parts.length >= 2) {
+          return { artist: parts[0].trim(), title: parts.slice(1).join(' - ').trim() };
+        }
+
+        const words = cleaned.split(' ');
+        return { artist: words.slice(0, 2).join(' ').trim(), title: cleaned };
+      };
+
+      const { artist, title: songTitle } = splitTrack(clean);
 
       // ---------- NORMALIZER ----------
       const normalize = (str) =>
         str
           .toLowerCase()
-          .replace(/[^\w\s]/g, '')
+          .replace(/[^\w\s\u00C0-\u024F]/g, ' ')
           .replace(/\s+/g, ' ')
           .trim();
 
       // ---------- FINGERPRINT (song-family detection) ----------
       const fingerprint = (str) =>
         normalize(str)
-          .replace(/\b(remix|official|video|audio|lyrics|version|edit|live|ft|feat|cover)\b/g, '')
+          .replace(/\b(remix|official|video|audio|lyrics|version|edit|live|ft|feat|cover|explicit|hd|mv|mv)\b/g, '')
           .replace(/\s+/g, ' ')
           .trim();
 
@@ -265,41 +280,31 @@ class MusicQueue {
       }
 
       // ---------- QUERY SYSTEM (LANGUAGE AWARE) ----------
-      let query;
+      const baseSearch = `${songTitle}${artist ? ' ' + artist : ''}`.trim();
+      const genericQuery = `${baseSearch} similar songs`.trim();
+      let query = '';
 
-      if (forceEscape || this.clusterLock.count > 3) {
-        query = `global trending music 2026`;
+      if (forceEscape || this.clusterLock.count > 3 || !baseSearch) {
+        query = 'global trending music 2026';
       } else if (currentLang === 'ar') {
-        query = [
-          `Arabic pop songs`,
-          `Egyptian music hits`,
-          `similar Arabic songs`,
-          `modern Arabic pop playlist`
-        ][Math.floor(Math.random() * 4)];
+        query = `أغاني مشابهة لـ ${baseSearch}`;
       } else if (currentLang === 'es') {
-        query = [
-          `reggaeton hits`,
-          `latin pop songs`,
-          `Bad Bunny style songs`,
-          `spanish pop playlist`
-        ][Math.floor(Math.random() * 4)];
+        query = `canciones similares a ${baseSearch}`;
       } else if (currentLang === 'fr') {
-        query = [
-          `french pop songs`,
-          `top french hits`,
-          `francophone music playlist`
-        ][Math.floor(Math.random() * 3)];
+        query = `chansons similaires à ${baseSearch}`;
       } else {
-        query = [
-          `songs like this`,
-          `similar vibe music`,
-          `discover new songs`
-        ][Math.floor(Math.random() * 3)];
+        query = genericQuery;
       }
 
       console.log(`[Autoplay] Searching: ${query}`);
 
-      const result = await node.rest.resolve(`ytsearch:${query}`);
+      let result = await node.rest.resolve(`ytsearch:${query}`);
+      if ((!result || result.loadType !== 'search' || !result.data?.length) && baseSearch) {
+        result = await node.rest.resolve(`ytsearch:${genericQuery}`);
+      }
+      if ((!result || result.loadType !== 'search' || !result.data?.length) && baseSearch) {
+        result = await node.rest.resolve(`ytsearch:${baseSearch}`);
+      }
 
       if (result?.loadType !== 'search' || !result.data?.length) {
         return null;
