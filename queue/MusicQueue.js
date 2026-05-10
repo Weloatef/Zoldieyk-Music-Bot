@@ -3,9 +3,8 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ActivityType
 const { recordPlay } = require('../music/stats');
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Helpers
+//  Formatting helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
 function buildProgressBar(position, duration, length = 12) {
   if (!duration || duration <= 0) return '──────────────';
   const pct    = Math.min(position / duration, 1);
@@ -25,157 +24,170 @@ function fmt(ms) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Language detection  (fixed: Arabic only needs Arabic chars, not dash+space)
+//  Language detection
 // ─────────────────────────────────────────────────────────────────────────────
 function detectLanguage(text) {
-  if (/[\u0600-\u06FF]/.test(text))  return 'ar';   // Arabic script → Arabic
-  if (/[\u0590-\u05FF]/.test(text))  return 'he';   // Hebrew
-  if (/[\u0400-\u04FF]/.test(text))  return 'ru';   // Cyrillic
-  if (/[\u3040-\u30FF\u4E00-\u9FFF]/.test(text)) return 'ja'; // Japanese/Chinese
-  if (/[\uAC00-\uD7A3]/.test(text))  return 'ko';   // Korean
-  // Latin-script language hints
-  if (/\b(que|como|para|porque|muy|canción|canciones|está|también|ellos)\b/i.test(text)
-    || /[ñáéíóúü¿¡]/i.test(text))    return 'es';
-  if (/\b(les|des|une|dans|avec|pour|plus|comme|sur|vous)\b/i.test(text)
-    || /[àâçéèêëîïôûùœæ]/i.test(text)) return 'fr';
-  if (/\b(und|der|die|das|mit|von|auf|ich|ein|ist)\b/i.test(text)) return 'de';
-  if (/\b(che|con|della|degli|sono|questo|quella)\b/i.test(text)) return 'it';
-  if (/\b(الله|انا|انت|لما|ليه|مش|عشان|بتاع|خليك|لو|عيني)\b/i.test(text)) return 'ar'; // Egyptian dialect
+  if (/[\u0600-\u06FF]/.test(text))            return 'ar';
+  if (/[\u0590-\u05FF]/.test(text))            return 'he';
+  if (/[\u0400-\u04FF]/.test(text))            return 'ru';
+  if (/[\u3040-\u30FF\u4E00-\u9FFF]/.test(text)) return 'ja';
+  if (/[\uAC00-\uD7A3]/.test(text))            return 'ko';
+  if (/[ñáéíóúü¿¡]/.test(text) || /\b(que|como|para|porque|muy|canción|también)\b/i.test(text)) return 'es';
+  if (/[àâçéèêëîïôûùœæ]/.test(text) || /\b(les|des|une|dans|avec|pour|vous)\b/i.test(text)) return 'fr';
+  if (/[äöüß]/.test(text) || /\b(und|der|die|das|mit|von|ich)\b/i.test(text)) return 'de';
+  if (/\b(che|della|degli|sono|questo|quella)\b/i.test(text)) return 'it';
   return 'en';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Title cleaning & splitting
+//  Title parsing — CRITICAL: do NOT strip " - " before splitTrack
+//  cleanTitle only removes junk AFTER splitting
 // ─────────────────────────────────────────────────────────────────────────────
-function cleanTitle(title) {
-  return title
-    .replace(/\(.*?\)|\[.*?\]/g, '')           // remove parenthetical & bracketed
-    .replace(/ft\..*|feat\..*/gi, '')           // featuring
-    .replace(/\b(official|video|audio|lyrics?|letra|hd|4k|clip|mv)\b.*/gi, '')
-    .replace(/\b(slowed|reverb|nightcore|sped up|speed up)\b.*/gi, '')
-    .replace(/\s*[-|:]\s*/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+function splitTrack(rawTitle) {
+  // Try "Artist - Song Title" — most common YouTube format
+  const dashMatch = rawTitle.match(/^(.+?)\s+-\s+(.+)$/);
+  if (dashMatch) {
+    const artist    = dashMatch[1].trim();
+    const songPart  = dashMatch[2].trim();
+    // Clean the song part only
+    const songTitle = stripJunk(songPart);
+    return { artist: stripJunk(artist), songTitle };
+  }
+  // Try "Song by Artist"
+  const byMatch = rawTitle.match(/^(.+?)\s+by\s+(.+)$/i);
+  if (byMatch) {
+    return { artist: stripJunk(byMatch[2]), songTitle: stripJunk(byMatch[1]) };
+  }
+  // No separator — whole thing is the song (no known artist)
+  return { artist: '', songTitle: stripJunk(rawTitle) };
 }
 
-// Extract { artist, songTitle } from a cleaned title string
-function splitTrack(text) {
-  // "Artist - Song" format (most common on YouTube)
-  const dashParts = text.split(/\s+-\s+/);
-  if (dashParts.length >= 2) {
-    return { artist: dashParts[0].trim(), songTitle: dashParts.slice(1).join(' ').trim() };
-  }
-  // "Song by Artist"
-  const byMatch = text.match(/^(.+?)\s+by\s+(.+)$/i);
-  if (byMatch) return { artist: byMatch[2].trim(), songTitle: byMatch[1].trim() };
-
-  // No separator — treat whole text as song title, no artist known
-  return { artist: '', songTitle: text.trim() };
+// Strip junk from a single part (artist name or song title)
+function stripJunk(str) {
+  return str
+    .replace(/\(.*?\)|\[.*?\]/g, '')
+    .replace(/\b(official|video|audio|lyrics?|letra|hd|4k|clip|mv|ft\..*|feat\..*)\b.*/gi, '')
+    .replace(/\b(slowed|reverb|nightcore|sped up|speed up)\b.*/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Normalize & fingerprint
 // ─────────────────────────────────────────────────────────────────────────────
 function normalize(str) {
-  return str
+  return (str || '')
     .toLowerCase()
-    .replace(/[^\w\s\u00C0-\u024F\u0600-\u06FF\u0400-\u04FF\uAC00-\uD7A3]/g, ' ')
+    // Keep Latin extended, Arabic, Cyrillic, CJK, Korean
+    .replace(/[^\w\s\u00C0-\u024F\u0600-\u06FF\u0400-\u04FF\u3040-\u30FF\u4E00-\u9FFF\uAC00-\uD7A3]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-// Strips metadata words to get the "core" song identity for dupe detection
-const FP_STRIP = /\b(remix|official|video|audio|lyrics?|letra|version|edit|live|ft|feat|cover|explicit|hd|mv|mashup|loop|transition|muffled|perfect|ending|best part|blind|audition|kids|france|belgique|easy|english translation|with audio|visualizer|lyric video|music video|extended|remaster|remastered|acoustic|unplugged|instrumental|karaoke|tribute|parody|reaction|review|analysis|commentary|explained|interview|behind the scenes|making of|recording|session|studio|performance|concert|tour|festival|showcase|premiere|debut|release|new|2020|2021|2022|2023|2024|2025|2026)\b/g;
+const FP_WORDS = new Set([
+  'official','video','audio','lyrics','lyric','letra','version','edit','live',
+  'ft','feat','cover','explicit','hd','mv','mashup','loop','transition',
+  'muffled','ending','intro','outro','extended','remaster','remastered',
+  'acoustic','unplugged','instrumental','karaoke','visualizer','clip',
+  'remix','slowed','reverb','nightcore','sped','speed','2020','2021',
+  '2022','2023','2024','2025','2026','new','best','top','greatest',
+]);
 
 function fingerprint(title) {
-  return normalize(title).replace(FP_STRIP, '').replace(/\s+/g, ' ').trim();
+  return normalize(title)
+    .split(' ')
+    .filter(w => w.length > 1 && !FP_WORDS.has(w))
+    .join(' ');
 }
 
-// Word-overlap similarity [0..1]
+// Word-overlap similarity [0..1] — ignores very short words
 function similarity(a, b) {
-  const setA = new Set(a.split(' ').filter(w => w.length > 2));
-  const setB = new Set(b.split(' ').filter(w => w.length > 2));
-  if (!setA.size || !setB.size) return 0;
-  const intersection = [...setA].filter(x => setB.has(x));
-  return intersection.length / Math.max(setA.size, setB.size);
+  const wordsA = new Set((a || '').split(' ').filter(w => w.length > 2));
+  const wordsB = new Set((b || '').split(' ').filter(w => w.length > 2));
+  if (!wordsA.size || !wordsB.size) return 0;
+  const common = [...wordsA].filter(w => wordsB.has(w)).length;
+  return common / Math.max(wordsA.size, wordsB.size);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Hard blocklist — titles containing ANY of these strings are rejected
-//  (applied after normalize, so lowercase)
+//  Hard blocklist  (checked on normalized lowercase title)
 // ─────────────────────────────────────────────────────────────────────────────
-const HARD_BLOCK = [
-  'playlist', 'compilation', 'mix', 'megamix', 'medley',
-  'slowed', 'reverb', 'nightcore', 'sped up', 'speed up',
-  'lyrics', 'lyric video', 'letra', 'كلمات',
-  'live', 'concert', 'tour', 'performance', 'session',
-  'cover', 'tribute', 'parody', 'karaoke', 'instrumental',
-  'reaction', 'review', 'explained', 'analysis', 'commentary',
-  'interview', 'behind the scenes', 'making of', 'recording',
-  'mashup', 'loop', 'transition', 'muffled',
-  'best part', 'ending', 'intro', 'outro',
-  'blind audition', 'the voice', 'got talent', 'idol',
-  'easy', 'kids', 'children', 'nursery',
-  'english translation', 'with audio', 'visualizer',
-  'acoustic', 'unplugged',
-  '1 hour', 'hour loop', 'hours',
-  'شيلة', 'شيله',        // Arabic nasheed/tribal chant (very different vibe)
-  'أنشودة', 'نشيد',      // Arabic religious chant
+const BLOCK_EXACT   = ['playlist','compilation','megamix','medley','mashup'];
+const BLOCK_PARTIAL = [
+  'slowed','reverb','nightcore','sped up','speed up',
+  'lyric video','lyrics video','letra','كلمات',
+  'live concert','live performance','live session',
+  'tribute','parody','karaoke','instrumental',
+  'reaction','review','explained','analysis','commentary',
+  'interview','behind the scenes','making of',
+  'blind audition','the voice','got talent','american idol',
+  'kids version','children','nursery rhyme',
+  'english translation','easy lyrics','with audio',
+  'best part','perfect ending','intro only',
+  '1 hour','hours loop','hour loop',
+  'شيلة','شيله','أنشودة','نشيد',   // Arabic chant formats
+  'street reaction','public reaction','that one song',
+  'took over','whole street','vibe took',
 ];
 
-function isBlocked(normalizedTitle) {
-  return HARD_BLOCK.some(word => normalizedTitle.includes(word));
+function isBlocked(normTitle) {
+  if (BLOCK_EXACT.some(w => normTitle === w))        return true;
+  if (BLOCK_PARTIAL.some(w => normTitle.includes(w))) return true;
+  return false;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Language-aware query builder
-//  Returns an array of queries to try in order (first non-empty result wins)
+//  Query builder  — returns ordered list to try
 // ─────────────────────────────────────────────────────────────────────────────
-function buildQueries(artist, songTitle, lang, escape) {
-  const base = artist ? `${artist} ${songTitle}` : songTitle;
-
+function buildQueries(artist, songTitle, lang, escape, artistEscape) {
+  // For escape rounds: find something totally different in the same language
   if (escape) {
-    // Forced genre escape — still language-consistent
-    const escapeMap = {
-      ar: `أحسن أغاني عربية 2024 2025`,
-      he: `שירים ישראלים פופולריים`,
-      ru: `лучшие российские хиты`,
-      ja: `人気の日本語の曲`,
-      ko: `인기 한국 노래`,
-      es: `mejores canciones en español pop`,
-      fr: `meilleures chansons françaises pop`,
-      de: `beste deutsche Musik Pop`,
-      it: `migliori canzoni italiane pop`,
-      en: `popular english songs similar to ${base}`,
+    const escapeQueries = {
+      ar: ['أحسن اغاني عربية 2024', 'اغاني عربية شهيرة', 'محمد منير اغاني', 'عمرو دياب اغاني'],
+      he: ['שירים ישראלים פופולריים', 'מוזיקה ישראלית'],
+      ru: ['российские хиты 2024', 'лучшие русские песни'],
+      ja: ['日本語の人気曲 2024', '邦楽ヒット'],
+      ko: ['한국 인기 가요 2024', 'K-POP 인기곡'],
+      es: ['pop en español 2024', 'reggaeton latino popular'],
+      fr: ['pop française populaire 2024', 'chanson française'],
+      de: ['deutsche Musik 2024', 'deutsche Pop Hits'],
+      it: ['musica italiana 2024', 'pop italiano'],
+      en: [`songs like ${songTitle}`, 'popular songs 2024'],
     };
-    return [escapeMap[lang] || `popular music ${lang}`];
+    return escapeQueries[lang] || escapeQueries.en;
   }
 
-  const map = {
-    ar: [
-      `${base} أغاني مشابهة`,           // "similar songs" in Arabic
-      `${artist || songTitle} اغاني`,    // just artist + "songs"
-      `أغاني عربية مشابهة ${songTitle}`, // Arabic songs similar to [song]
-    ],
-    he: [`${base} שירים דומים`, `${artist} שירים`],
-    ru: [`${base} похожие песни`, `${artist} лучшие песни`],
-    ja: [`${base} 似た曲`, `${artist} 人気曲`],
-    ko: [`${base} 비슷한 노래`, `${artist} 노래`],
-    es: [`${base} canciones similares`, `${artist} canciones populares`],
-    fr: [`${base} chansons similaires`, `${artist} meilleures chansons`],
-    de: [`${base} ähnliche Lieder`, `${artist} beste Songs`],
-    it: [`${base} canzoni simili`, `${artist} canzoni popolari`],
-    en: [
-      `${base} similar songs`,
-      artist ? `${artist} popular songs` : `${songTitle} related`,
-    ],
-  };
+  const queries = [];
 
-  return (map[lang] || map.en).filter(Boolean);
+  if (artist && !artistEscape) {
+    // Primary: same artist, different songs
+    queries.push(`${artist} songs`);
+    queries.push(`${artist} best songs`);
+  }
+
+  // Language-specific "similar songs" query
+  const similarMap = {
+    ar: `اغاني مشابهة ${songTitle}`,
+    he: `שירים דומים ל ${songTitle}`,
+    ru: `похожие на ${songTitle}`,
+    ja: `${songTitle} 似た曲`,
+    ko: `${songTitle} 비슷한 노래`,
+    es: `canciones similares a ${songTitle}`,
+    fr: `chansons similaires à ${songTitle}`,
+    de: `ähnliche Lieder wie ${songTitle}`,
+    it: `canzoni simili a ${songTitle}`,
+    en: `songs similar to ${songTitle}`,
+  };
+  queries.push(similarMap[lang] || `songs similar to ${songTitle}`);
+
+  // Broader genre fallback — song title only, no junk words
+  queries.push(songTitle);
+
+  return queries.filter(Boolean);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  MusicQueue class
+//  MusicQueue
 // ─────────────────────────────────────────────────────────────────────────────
 class MusicQueue {
   constructor(guildId, textChannel, player, client) {
@@ -184,7 +196,7 @@ class MusicQueue {
     this.player      = player;
     this.client      = client;
     this.tracks      = [];
-    this.history     = [];    // full track objects, last 30
+    this.history     = [];
     this.current     = null;
     this.paused      = false;
     this.loop        = false;
@@ -196,11 +208,11 @@ class MusicQueue {
     this._npMessage  = null;
     this._progressInterval = null;
 
-    // Autoplay memory — persists for the whole session
-    this._seenUris    = new Set();   // all URIs ever played/queued
-    this._seenFps     = new Set();   // fingerprints of played songs
-    this._artistCount = new Map();   // author → play count
-    this._autoStep    = 0;           // increments each autoplay pick
+    // Autoplay memory
+    this._seenUris    = new Set();
+    this._seenFps     = new Set();
+    this._artistCount = new Map();
+    this._autoStep    = 0;
 
     this.player.on('end', data => {
       if (data.reason === 'replaced') return;
@@ -208,13 +220,11 @@ class MusicQueue {
       else if (this.loopQueue && this.current) this.tracks.push({ ...this.current });
       this._playNext();
     });
-
     this.player.on('exception', err => {
       console.error(`[Player Exception] ${err?.message || err}`);
       this.textChannel.send('⚠️ Playback error — skipping.').catch(() => {});
       this._playNext();
     });
-
     this.player.on('stuck',  () => { console.warn('[Stuck]'); this._playNext(); });
     this.player.on('closed', () => { console.warn(`[Player] Closed — guild ${this.guildId}`); this._cleanup(); });
     this.player.on('update', () => {});
@@ -224,19 +234,18 @@ class MusicQueue {
   _buildUI() {
     const t        = this.current;
     const pos      = this.player.position || 0;
-    const dur      = t.durationMs         || 0;
-    const progress = buildProgressBar(pos, dur);
+    const dur      = t.durationMs || 0;
 
     const embed = new EmbedBuilder()
       .setColor(0x1DB954)
       .setTitle('🎵 Now Playing')
-      .setDescription(`**[${t.title}](${t.uri})**\n\n${progress}`)
+      .setDescription(`**[${t.title}](${t.uri})**\n\n${buildProgressBar(pos, dur)}`)
       .addFields(
-        { name: 'Requested by', value: t.requester            || 'Unknown',               inline: true },
-        { name: 'Queue',        value: `${this.tracks.length} song(s)`,                   inline: true },
-        { name: 'Loop',         value: this.loop ? '🔁 Song' : this.loopQueue ? '🔁 Queue' : 'Off', inline: true },
-        { name: 'Volume',       value: `🔊 ${this.volume}%`,                               inline: true },
-        { name: 'Autoplay',     value: this.autoplay ? '🔄 On' : '⏹ Off',                 inline: true },
+        { name: 'Requested by', value: t.requester || 'Unknown', inline: true },
+        { name: 'Queue',  value: `${this.tracks.length} song(s)`, inline: true },
+        { name: 'Loop',   value: this.loop ? '🔁 Song' : this.loopQueue ? '🔁 Queue' : 'Off', inline: true },
+        { name: 'Volume', value: `🔊 ${this.volume}%`, inline: true },
+        { name: 'Autoplay', value: this.autoplay ? '🔄 On' : '⏹ Off', inline: true },
       )
       .setThumbnail(t.thumbnail || null)
       .setFooter({ text: 'Type a song name to queue more' });
@@ -248,7 +257,6 @@ class MusicQueue {
       new ButtonBuilder().setCustomId('music_loop')    .setEmoji('🔁').setStyle(this.loop || this.loopQueue ? ButtonStyle.Success : ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('music_shuffle') .setEmoji('🔀').setStyle(ButtonStyle.Secondary),
     );
-
     const row2 = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('music_voldown') .setEmoji('🔉').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('music_queue')   .setEmoji('📋').setStyle(ButtonStyle.Secondary),
@@ -256,7 +264,6 @@ class MusicQueue {
       new ButtonBuilder().setCustomId('music_volup')   .setEmoji('🔊').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('music_autoplay').setEmoji('🔄').setStyle(this.autoplay ? ButtonStyle.Success : ButtonStyle.Secondary),
     );
-
     return { embed, components: [row1, row2] };
   }
 
@@ -283,7 +290,8 @@ class MusicQueue {
     this._progressInterval = setInterval(async () => {
       if (!this._npMessage || !this.current || this.paused) return;
       const { embed, components } = this._buildUI();
-      try { await this._npMessage.edit({ embeds: [embed], components }); } catch (_) { this._stopProgressInterval(); }
+      try { await this._npMessage.edit({ embeds: [embed], components }); }
+      catch (_) { this._stopProgressInterval(); }
     }, 15_000);
   }
 
@@ -309,9 +317,8 @@ class MusicQueue {
 
   // ── Queue management ────────────────────────────────────────────────────────
   async addTrack(track) {
-    // Register URI in seen set so autoplay never re-queues user-requested songs
-    if (track.uri) this._seenUris.add(track.uri);
-    if (track.uri) this._seenFps.add(fingerprint(track.title));
+    if (track.uri)   this._seenUris.add(track.uri);
+    if (track.title) this._seenFps.add(fingerprint(track.title));
     this.tracks.push(track);
     if (!this.current) await this._playNext();
   }
@@ -345,12 +352,11 @@ class MusicQueue {
     this.current = this.tracks.shift();
     this.paused  = false;
 
-    // Track in history (use URI as the canonical ID)
     this.history.unshift({ ...this.current });
     if (this.history.length > 30) this.history.pop();
 
-    // Register in seen sets
-    if (this.current.uri) this._seenUris.add(this.current.uri);
+    // Register current song as seen immediately
+    if (this.current.uri)   this._seenUris.add(this.current.uri);
     if (this.current.title) this._seenFps.add(fingerprint(this.current.title));
 
     if (this.current._requesterId) {
@@ -369,155 +375,153 @@ class MusicQueue {
     }
   }
 
-  // ── Autoplay: find a related song ───────────────────────────────────────────
+  // ── Autoplay core ───────────────────────────────────────────────────────────
   async _findRelated() {
     if (!this.current) return null;
 
-    const MAX_SEARCH_MS = 8_000; // hard timeout so we never hang
-    const searchDeadline = Date.now() + MAX_SEARCH_MS;
+    const TIMEOUT_MS = 7_000;
+    const deadline   = Date.now() + TIMEOUT_MS;
 
     try {
       const node = this.client.shoukaku.getIdealNode();
       if (!node) return null;
 
-      const lang      = detectLanguage(this.current.title);
-      const cleaned   = cleanTitle(this.current.title);
-      const { artist, songTitle } = splitTrack(cleaned);
+      // ── Parse current song ───────────────────────────────────────────────
+      // splitTrack works on the RAW title — don't pre-strip the " - "
+      const { artist, songTitle } = splitTrack(this.current.title);
+      const lang = detectLanguage(this.current.title + ' ' + (this.current.author || '') + ' ' + artist);
 
       this._autoStep++;
-      // Force genre/artist escape every 5 songs to avoid getting stuck
-      const forceEscape = this._autoStep % 5 === 0;
+      const forceEscape  = this._autoStep % 5 === 0;
+      const artistKey    = artist.toLowerCase().trim();
+      const artistPlays  = artistKey ? (this._artistCount.get(artistKey) || 0) : 0;
+      const artistEscape = artistPlays >= 2;
 
-      // Artist repetition guard — after 2 picks from same artist, escape
-      const artistKey     = (this.current.author || artist || '').toLowerCase().trim();
-      const artistPlays   = this._artistCount.get(artistKey) || 0;
-      const artistEscape  = artistPlays >= 2 && !forceEscape;
+      console.log(`[Autoplay] Step:${this._autoStep} Lang:${lang} Artist:"${artist}" Song:"${songTitle}" Escape:${forceEscape} ArtistEsc:${artistEscape}`);
 
-      const queries = buildQueries(
-        artistEscape ? '' : artist,   // drop artist to escape cluster
-        songTitle,
-        lang,
-        forceEscape
-      );
+      const queries = buildQueries(artist, songTitle, lang, forceEscape, artistEscape);
 
-      console.log(`[Autoplay] Lang:${lang} Artist:"${artist}" Song:"${songTitle}" Escape:${forceEscape||artistEscape}`);
-
-      let candidates = [];
-
-      for (const q of queries) {
-        if (Date.now() > searchDeadline) break;
-        try {
-          const res = await node.rest.resolve(`ytsearch:${q}`);
-          if (res?.loadType === 'search' && res.data?.length) {
-            candidates = res.data;
-            console.log(`[Autoplay] Query "${q}" → ${candidates.length} results`);
-            break;
-          }
-        } catch (_) {}
-      }
-
-      if (!candidates.length) {
-        console.log('[Autoplay] No candidates found');
-        return null;
-      }
-
-      // ── Filter ──────────────────────────────────────────────────────────────
-      const currentNorm = normalize(this.current.title);
+      // ── Current song identity for dupe detection ─────────────────────────
       const currentFp   = fingerprint(this.current.title);
+      const currentNorm = normalize(this.current.title);
 
-      const filtered = candidates.filter(t => {
-        const info  = t.info;
-        const title = normalize(info.title);
-        const fp    = fingerprint(info.title);
-        const uri   = info.uri || '';
+      // ── Try each query until we get a usable pick ────────────────────────
+      for (const q of queries) {
+        if (Date.now() > deadline) break;
 
-        // Already played / queued
-        if (this._seenUris.has(uri))                  return false;
-        if (this._seenFps.has(fp))                    return false;
+        let res;
+        try {
+          res = await node.rest.resolve(`ytsearch:${q}`);
+        } catch (_) { continue; }
 
-        // Same song (URI or fingerprint match)
-        if (uri === this.current.uri)                  return false;
-        if (fp  === currentFp)                         return false;
+        if (res?.loadType !== 'search' || !res.data?.length) continue;
 
-        // Same song family (one fingerprint contains the other)
-        if (fp.length > 4 && currentFp.length > 4) {
-          if (fp.includes(currentFp) || currentFp.includes(fp)) return false;
+        console.log(`[Autoplay] Query "${q}" → ${res.data.length} results`);
+
+        // ── Filter candidates ──────────────────────────────────────────────
+        // Two passes: strict (language check on), then relaxed (language check off)
+        for (const strict of [true, false]) {
+          const filtered = res.data.filter(t => {
+            const info      = t.info;
+            const titleNorm = normalize(info.title);
+            const fp        = fingerprint(info.title);
+            const uri       = info.uri || '';
+
+            // Absolute dedupe — URI or fingerprint already seen
+            if (this._seenUris.has(uri))  return false;
+            if (this._seenFps.has(fp))    return false;
+
+            // Same as currently playing
+            if (uri === this.current.uri) return false;
+            if (fp === currentFp)         return false;
+
+            // Same song family (fingerprint containment)
+            if (fp.length > 3 && currentFp.length > 3) {
+              if (fp.includes(currentFp) || currentFp.includes(fp)) return false;
+            }
+
+            // High title similarity → same song different version
+            if (similarity(titleNorm, currentNorm) > 0.55) return false;
+
+            // Hard blocklist
+            if (isBlocked(titleNorm)) return false;
+
+            // No streams or live
+            if (info.isStream || info.isLive) return false;
+
+            // Duration 1:00 – 8:00
+            const dur = info.length || 0;
+            if (dur < 60_000 || dur > 8 * 60_000) return false;
+
+            // Language check (strict pass only, skipped on relaxed pass)
+            if (strict) {
+              const candLang = detectLanguage(info.title + ' ' + (info.author || ''));
+              if (lang !== 'en' && candLang !== lang) return false;
+            }
+
+            return true;
+          });
+
+          if (!filtered.length) {
+            if (strict) continue; // try relaxed
+            continue;             // try next query
+          }
+
+          // ── Score remaining candidates ─────────────────────────────────
+          const scored = filtered.map(t => {
+            const info      = t.info;
+            const titleNorm = normalize(info.title);
+            const author    = (info.author || '').toLowerCase().trim();
+            const aPlays    = this._artistCount.get(author) || 0;
+
+            let score = 100;
+            // Mild boost for same artist (fresh artist, not repeated)
+            if (artistKey && author.includes(artistKey) && !artistEscape) score += 20;
+            // Heavy penalty for repeated artist
+            score -= aPlays * 35;
+            // Penalty for title similarity to current
+            score -= similarity(titleNorm, currentNorm) * 180;
+            // Prefer shorter, clean titles (real songs vs reaction vids)
+            if (info.title.length < 70) score += 8;
+            // Small boost for official channels
+            if (/official|vevo/i.test(info.author || '')) score += 10;
+
+            return { t, score };
+          }).sort((a, b) => b.score - a.score);
+
+          const pick = scored[0]?.t;
+          if (!pick) continue;
+
+          // ── Register pick in memory ────────────────────────────────────
+          const pickedFp     = fingerprint(pick.info.title);
+          const pickedAuthor = (pick.info.author || '').toLowerCase().trim();
+          this._seenUris.add(pick.info.uri);
+          this._seenFps.add(pickedFp);
+          if (pickedAuthor) {
+            this._artistCount.set(pickedAuthor, (this._artistCount.get(pickedAuthor) || 0) + 1);
+          }
+          if (artistKey) {
+            this._artistCount.set(artistKey, (this._artistCount.get(artistKey) || 0) + 1);
+          }
+
+          console.log(`[Autoplay] ✅ Picked: "${pick.info.title}" by ${pick.info.author}`);
+
+          return {
+            encoded     : pick.encoded,
+            title       : pick.info.title,
+            uri         : pick.info.uri,
+            duration    : fmt(pick.info.length),
+            durationMs  : pick.info.length,
+            thumbnail   : pick.info.artworkUrl || null,
+            requester   : '🤖 Autoplay',
+            _requesterId: null,
+            _autoplay   : true,
+          };
         }
-
-        // High title word-overlap → same song different version
-        if (similarity(title, currentNorm) > 0.6)     return false;
-
-        // Hard blocklist (playlists, compilations, junk)
-        if (isBlocked(title))                          return false;
-
-        // No live streams
-        if (info.isStream || info.isLive)              return false;
-
-        // Duration: must be 1:00–8:00
-        const dur = info.length || 0;
-        if (dur < 60_000 || dur > 8 * 60_000)         return false;
-
-        // Language consistency (skip for forced escape)
-        if (!forceEscape) {
-          const candLang = detectLanguage(info.title + ' ' + (info.author || ''));
-          if (candLang !== lang && lang !== 'en')      return false;
-        }
-
-        return true;
-      });
-
-      if (!filtered.length) {
-        console.log('[Autoplay] All candidates filtered out');
-        return null;
       }
 
-      // ── Score ────────────────────────────────────────────────────────────────
-      const scored = filtered.map(t => {
-        const info       = t.info;
-        const titleNorm  = normalize(info.title);
-        const author     = (info.author || '').toLowerCase().trim();
-        const authorPlays = this._artistCount.get(author) || 0;
-
-        let score = 100;
-
-        // Same artist as current — mild boost (variety, not obsession)
-        if (artist && author.includes(artist.toLowerCase())) score += 15;
-
-        // Penalise artist repetition heavily
-        score -= authorPlays * 30;
-
-        // Penalise title similarity (avoid same-song variants that slipped through)
-        const sim = similarity(titleNorm, currentNorm);
-        score -= sim * 150;
-
-        // Slight boost for shorter, punchier titles (real song vs compilation)
-        if (info.title.length < 60) score += 5;
-
-        return { t, score };
-      }).sort((a, b) => b.score - a.score);
-
-      const pick = scored[0]?.t;
-      if (!pick) return null;
-
-      // ── Update memory ────────────────────────────────────────────────────────
-      const pickedAuthor = (pick.info.author || '').toLowerCase().trim();
-      this._seenUris.add(pick.info.uri);
-      this._seenFps.add(fingerprint(pick.info.title));
-      this._artistCount.set(pickedAuthor, (this._artistCount.get(pickedAuthor) || 0) + 1);
-
-      console.log(`[Autoplay] ✅ Picked: "${pick.info.title}" by ${pick.info.author}`);
-
-      return {
-        encoded     : pick.encoded,
-        title       : pick.info.title,
-        uri         : pick.info.uri,
-        duration    : fmt(pick.info.length),
-        durationMs  : pick.info.length,
-        thumbnail   : pick.info.artworkUrl || null,
-        requester   : '🤖 Autoplay',
-        _requesterId: null,
-        _autoplay   : true,
-      };
+      console.log('[Autoplay] ❌ No suitable track found across all queries');
+      return null;
 
     } catch (err) {
       console.error('[Autoplay Error]', err.message);
@@ -526,19 +530,9 @@ class MusicQueue {
   }
 
   // ── Controls ─────────────────────────────────────────────────────────────────
-  async toggleAutoplay() {
-    this.autoplay = !this.autoplay;
-    await this._refreshUI();
-    return this.autoplay;
-  }
-
-  async replay() {
-    if (!this.current) return;
-    this.tracks.unshift({ ...this.current });
-    this.player.stopTrack();
-  }
-
-  skip() { this.player.stopTrack(); }
+  async toggleAutoplay() { this.autoplay = !this.autoplay; await this._refreshUI(); return this.autoplay; }
+  async replay()         { if (!this.current) return; this.tracks.unshift({ ...this.current }); this.player.stopTrack(); }
+  skip()                 { this.player.stopTrack(); }
 
   async skipTo(position) {
     if (position < 1 || position > this.tracks.length) return false;
@@ -547,22 +541,9 @@ class MusicQueue {
     return true;
   }
 
-  async seek(ms) {
-    await this.player.seekTo(ms);
-    await this._refreshUI();
-  }
-
-  async pause() {
-    this.player.setPaused(true);
-    this.paused = true;
-    await this._refreshUI();
-  }
-
-  async resume() {
-    this.player.setPaused(false);
-    this.paused = false;
-    await this._refreshUI();
-  }
+  async seek(ms)   { await this.player.seekTo(ms); await this._refreshUI(); }
+  async pause()    { this.player.setPaused(true);  this.paused = true;  await this._refreshUI(); }
+  async resume()   { this.player.setPaused(false); this.paused = false; await this._refreshUI(); }
 
   async toggleLoop() {
     if      (!this.loop && !this.loopQueue) this.loop = true;
