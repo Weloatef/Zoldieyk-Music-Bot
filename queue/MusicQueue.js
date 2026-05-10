@@ -199,25 +199,104 @@ class MusicQueue {
 
   async _findRelated() {
     if (!this.current) return null;
+
     try {
-      const node  = this.client.shoukaku.getIdealNode();
+      const node = this.client.shoukaku.getIdealNode();
       if (!node) return null;
-      const clean = this.current.title.replace(/\(.*?\)|\[.*?\]|ft\..*|feat\..*|official.*|video.*/gi, '').trim();
-      const result = await node.rest.resolve(`ytsearch:${clean} mix`);
-      if (result?.loadType !== 'search' || !result.data?.length) return null;
-      const pick = result.data.find(t => t.info.uri !== this.current.uri);
+
+      // Clean current title heavily
+      const clean = this.current.title
+        .replace(/\(.*?\)|\[.*?\]/g, '')
+        .replace(/ft\..*|feat\..*/gi, '')
+        .replace(/official.*|video.*/gi, '')
+        .replace(/slowed.*|reverb.*|nightcore.*|sped up.*/gi, '')
+        .replace(/lyrics?.*/gi, '')
+        .trim();
+
+      // Extract likely artist
+      let artist = '';
+
+      if (clean.includes(' - ')) {
+        artist = clean.split(' - ')[0].trim();
+      } else {
+        artist = clean.split(' ').slice(0, 2).join(' ');
+      }
+
+      // Rotate autoplay discovery strategies
+      const queries = [
+        `${artist} popular songs`,
+        `${artist} best hits`,
+        `${artist} top tracks`,
+        `songs like ${clean}`,
+        `${artist} music mix`,
+        `${artist} similar artists`,
+      ];
+
+      // Rotate based on history count
+      const query = queries[this.history.length % queries.length];
+
+      console.log(`[Autoplay] Searching: ${query}`);
+
+      const result = await node.rest.resolve(`ytsearch:${query}`);
+
+      if (result?.loadType !== 'search' || !result.data?.length) {
+        return null;
+      }
+
+      // Avoid repeats and same-title variants
+      const historyUris = new Set(this.history.map(t => t.uri));
+
+      const currentWords = clean
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean);
+
+      const pick = result.data.find(t => {
+        const title = t.info.title.toLowerCase();
+
+        // Skip same URI
+        if (t.info.uri === this.current.uri) return false;
+
+        // Skip already played
+        if (historyUris.has(t.info.uri)) return false;
+
+        // Skip remix/slowed/etc
+        if (
+          title.includes('slowed') ||
+          title.includes('reverb') ||
+          title.includes('nightcore') ||
+          title.includes('sped up') ||
+          title.includes('remix')
+        ) {
+          return false;
+        }
+
+        // Skip titles too similar to current song
+        const similarity = currentWords.filter(word =>
+          title.includes(word)
+        ).length;
+
+        if (similarity >= Math.max(3, currentWords.length * 0.6)) {
+          return false;
+        }
+
+        return true;
+      });
+
       if (!pick) return null;
+
       return {
-        encoded     : pick.encoded,
-        title       : pick.info.title,
-        uri         : pick.info.uri,
-        duration    : fmt(pick.info.length),
-        durationMs  : pick.info.length,
-        thumbnail   : pick.info.artworkUrl || null,
-        requester   : '🤖 Autoplay',
+        encoded: pick.encoded,
+        title: pick.info.title,
+        uri: pick.info.uri,
+        duration: fmt(pick.info.length),
+        durationMs: pick.info.length,
+        thumbnail: pick.info.artworkUrl || null,
+        requester: '🤖 Autoplay',
         _requesterId: null,
-        _autoplay   : true,
+        _autoplay: true,
       };
+
     } catch (err) {
       console.error('[Autoplay Error]', err.message);
       return null;
