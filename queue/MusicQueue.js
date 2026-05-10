@@ -1,26 +1,50 @@
 // queue/MusicQueue.js
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ActivityType } = require('discord.js');
+const { recordPlay } = require('../music/stats');
+
+// ── Progress bar builder ──────────────────────────────────────────────────────
+function buildProgressBar(position, duration, length = 12) {
+  if (!duration || duration <= 0) return '──────────────';
+  const pct      = Math.min(position / duration, 1);
+  const filled   = Math.round(pct * length);
+  const empty    = length - filled;
+  const bar      = '▓'.repeat(filled) + '░'.repeat(empty);
+  return `\`${bar}\` ${fmt(position)} / ${fmt(duration)}`;
+}
+
+function fmt(ms) {
+  if (!ms) return '0:00';
+  const s   = Math.floor(ms / 1000);
+  const h   = Math.floor(s / 3600);
+  const m   = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  return `${m}:${String(sec).padStart(2,'0')}`;
+}
 
 class MusicQueue {
   constructor(guildId, textChannel, player, client) {
-    this.guildId        = guildId;
-    this.textChannel    = textChannel;
-    this.player         = player;
-    this.client         = client;
-    this.tracks         = [];
-    this.current        = null;
-    this.paused         = false;
-    this.loop           = false;   // loop current song
-    this.loopQueue      = false;   // loop entire queue
-    this.volume         = 100;
-    this._idleTimer     = null;
-    this._destroyed     = false;
-    this._npMessage     = null;    // the "Now Playing" message with buttons
+    this.guildId     = guildId;
+    this.textChannel = textChannel;
+    this.player      = player;
+    this.client      = client;
+    this.tracks      = [];
+    this.history     = [];   // last 20 played songs
+    this.current     = null;
+    this.paused      = false;
+    this.loop        = false;
+    this.loopQueue   = false;
+    this.volume      = 100;
+    this._idleTimer  = null;
+    this._destroyed  = false;
+    this._npMessage  = null;
+    this._progressInterval = null; // for live progress bar updates
 
+    // ── Player events ───────────────────────────────────────────────────────
     this.player.on('end', data => {
       if (data.reason === 'replaced') return;
-      if (this.loop && this.current) this.tracks.unshift(this.current);
-      else if (this.loopQueue && this.current) this.tracks.push(this.current);
+      if (this.loop      && this.current) this.tracks.unshift({ ...this.current });
+      else if (this.loopQueue && this.current) this.tracks.push({ ...this.current });
       this._playNext();
     });
 
@@ -30,105 +54,104 @@ class MusicQueue {
       this._playNext();
     });
 
-    this.player.on('stuck', () => {
-      console.warn('[Player Stuck] Skipping.');
-      this._playNext();
-    });
+    this.player.on('stuck', () => { console.warn('[Stuck]'); this._playNext(); });
 
     this.player.on('closed', () => {
-      console.warn(`[Player] Closed for guild ${this.guildId}`);
+      console.warn(`[Player] Closed — guild ${this.guildId}`);
       this._cleanup();
     });
+
+    // Position updates from Lavalink (every ~5s)
+    this.player.on('update', () => { /* position lives on this.player.position */ });
   }
 
-  // ── Build the Now Playing embed + button rows ─────────────────────────────
-  _buildNowPlayingUI() {
-    const t = this.current;
+  // ── UI builders ────────────────────────────────────────────────────────────
+  _buildUI() {
+    const t        = this.current;
+    const pos      = this.player.position  || 0;
+    const dur      = t.durationMs          || 0;
+    const progress = buildProgressBar(pos, dur);
 
     const embed = new EmbedBuilder()
       .setColor(0x1DB954)
       .setTitle('🎵 Now Playing')
-      .setDescription(`**[${t.title}](${t.uri})**`)
+      .setDescription(`**[${t.title}](${t.uri})**\n\n${progress}`)
       .addFields(
-        { name: 'Duration',     value: t.duration          || 'Unknown', inline: true },
-        { name: 'Requested by', value: t.requester         || 'Unknown', inline: true },
-        { name: 'Queue',        value: `${this.tracks.length} song(s)`,  inline: true },
+        { name: 'Requested by', value: t.requester       || 'Unknown',  inline: true },
+        { name: 'Queue',        value: `${this.tracks.length} song(s)`, inline: true },
         { name: 'Loop',         value: this.loop ? '🔁 Song' : this.loopQueue ? '🔁 Queue' : 'Off', inline: true },
         { name: 'Volume',       value: `🔊 ${this.volume}%`, inline: true },
       )
       .setThumbnail(t.thumbnail || null)
-      .setFooter({ text: 'Use the buttons below or type a song name to queue more' });
+      .setFooter({ text: 'Type a song name to queue more' });
 
-    // Row 1 — main playback controls
     const row1 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('music_replay')
-        .setEmoji('⏮')
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId('music_pause')
-        .setEmoji(this.paused ? '▶️' : '⏸')
-        .setStyle(this.paused ? ButtonStyle.Success : ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId('music_skip')
-        .setEmoji('⏭')
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId('music_loop')
-        .setEmoji('🔁')
-        .setStyle(this.loop || this.loopQueue ? ButtonStyle.Success : ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId('music_shuffle')
-        .setEmoji('🔀')
-        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('music_replay') .setEmoji('⏮').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('music_pause')  .setEmoji(this.paused ? '▶️' : '⏸').setStyle(this.paused ? ButtonStyle.Success : ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('music_skip')   .setEmoji('⏭').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('music_loop')   .setEmoji('🔁').setStyle(this.loop || this.loopQueue ? ButtonStyle.Success : ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('music_shuffle').setEmoji('🔀').setStyle(ButtonStyle.Secondary),
     );
 
-    // Row 2 — volume + queue + stop
     const row2 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('music_voldown')
-        .setEmoji('🔉')
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId('music_queue')
-        .setEmoji('📋')
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId('music_stop')
-        .setEmoji('⏹')
-        .setStyle(ButtonStyle.Danger),
-      new ButtonBuilder()
-        .setCustomId('music_volup')
-        .setEmoji('🔊')
-        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('music_voldown').setEmoji('🔉').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('music_queue')  .setEmoji('📋').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('music_stop')   .setEmoji('⏹').setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId('music_volup')  .setEmoji('🔊').setStyle(ButtonStyle.Secondary),
     );
 
     return { embed, components: [row1, row2] };
   }
 
-  // ── Send or update the Now Playing message ────────────────────────────────
-  async _sendNowPlaying() {
-    const { embed, components } = this._buildNowPlayingUI();
-
-    // Disable buttons on the old message so only the latest is interactive
-    if (this._npMessage) {
-      try {
-        await this._npMessage.edit({ components: _disabledComponents(this._npMessage.components) });
-      } catch (_) {}
-    }
-
-    this._npMessage = await this.textChannel.send({ embeds: [embed], components }).catch(() => null);
+  _disableButtons(rows) {
+    return rows.map(row => {
+      const r = new ActionRowBuilder();
+      r.addComponents(row.components.map(b => ButtonBuilder.from(b).setDisabled(true)));
+      return r;
+    });
   }
 
-  // ── Refresh buttons on the current Now Playing message (no new message) ──
+  async _sendNowPlaying() {
+    // Disable old NP message
+    if (this._npMessage) {
+      try { await this._npMessage.edit({ components: this._disableButtons(this._npMessage.components) }); } catch (_) {}
+    }
+    this._stopProgressInterval();
+    const { embed, components } = this._buildUI();
+    this._npMessage = await this.textChannel.send({ embeds: [embed], components }).catch(() => null);
+    this._startProgressInterval();
+  }
+
+  // Update progress bar every 15s without spamming Discord
+  _startProgressInterval() {
+    this._stopProgressInterval();
+    this._progressInterval = setInterval(async () => {
+      if (!this._npMessage || !this.current || this.paused) return;
+      const { embed, components } = this._buildUI();
+      try { await this._npMessage.edit({ embeds: [embed], components }); } catch (_) { this._stopProgressInterval(); }
+    }, 15_000);
+  }
+
+  _stopProgressInterval() {
+    if (this._progressInterval) { clearInterval(this._progressInterval); this._progressInterval = null; }
+  }
+
   async _refreshUI() {
     if (!this._npMessage || !this.current) return;
-    const { embed, components } = this._buildNowPlayingUI();
-    try {
-      await this._npMessage.edit({ embeds: [embed], components });
-    } catch (_) {}
+    const { embed, components } = this._buildUI();
+    try { await this._npMessage.edit({ embeds: [embed], components }); } catch (_) {}
   }
 
+  // ── Update bot's Discord status with current song ─────────────────────────
+  _updateStatus() {
+    if (!this.current) {
+      this.client.user.setActivity('🎵 Type a song name!', { type: ActivityType.Listening });
+    } else {
+      this.client.user.setActivity(this.current.title, { type: ActivityType.Listening });
+    }
+  }
+
+  // ── Queue management ───────────────────────────────────────────────────────
   async addTrack(track) {
     this.tracks.push(track);
     if (!this.current) await this._playNext();
@@ -136,27 +159,48 @@ class MusicQueue {
 
   async _playNext() {
     clearTimeout(this._idleTimer);
+    this._stopProgressInterval();
     if (this._destroyed) return;
 
     if (this.tracks.length === 0) {
-      this.current = null;
-      // Disable buttons on the last NP message
-      if (this._npMessage) {
-        try {
-          await this._npMessage.edit({ components: _disabledComponents(this._npMessage.components) });
-        } catch (_) {}
-        this._npMessage = null;
+      // Autoplay — find related song
+      if (this.current) {
+        const related = await this._findRelated();
+        if (related) {
+          console.log(`[Autoplay] Queuing: ${related.title}`);
+          this.tracks.push(related);
+        }
       }
-      this._idleTimer = setTimeout(() => this.destroy(), 2 * 60 * 1000);
-      return;
+
+      // Still nothing after autoplay attempt
+      if (this.tracks.length === 0) {
+        this.current = null;
+        this._updateStatus();
+        if (this._npMessage) {
+          try { await this._npMessage.edit({ components: this._disableButtons(this._npMessage.components) }); } catch (_) {}
+          this._npMessage = null;
+        }
+        this._idleTimer = setTimeout(() => this.destroy(), 2 * 60 * 1000);
+        return;
+      }
     }
 
     this.current = this.tracks.shift();
     this.paused  = false;
 
+    // Record in history (keep last 20)
+    this.history.unshift({ ...this.current });
+    if (this.history.length > 20) this.history.pop();
+
+    // Record stats
+    if (this.current._requesterId) {
+      recordPlay(this.current, this.current._requesterId, this.current.requester);
+    }
+
     try {
       await this.player.playTrack({ track: { encoded: this.current.encoded } });
       await this._sendNowPlaying();
+      this._updateStatus();
       console.log(`[Playing] ${this.current.title}`);
     } catch (err) {
       console.error(`[Play Error] ${err.message}`);
@@ -165,14 +209,59 @@ class MusicQueue {
     }
   }
 
+  // ── Autoplay: search for related song ────────────────────────────────────
+  async _findRelated() {
+    if (!this.current) return null;
+    try {
+      const node   = this.client.shoukaku.getIdealNode();
+      if (!node) return null;
+      // Search YouTube for artist/title minus common words
+      const clean  = this.current.title.replace(/\(.*?\)|\[.*?\]|ft\..*|feat\..*|official.*|video.*/gi, '').trim();
+      const query  = `ytsearch:${clean} mix`;
+      const result = await node.rest.resolve(query);
+      if (result?.loadType !== 'search' || !result.data?.length) return null;
+      // Pick a result that isn't the current song
+      const pick = result.data.find(t => t.info.uri !== this.current.uri);
+      if (!pick) return null;
+      return {
+        encoded  : pick.encoded,
+        title    : pick.info.title,
+        uri      : pick.info.uri,
+        duration : fmt(pick.info.length),
+        durationMs: pick.info.length,
+        thumbnail: pick.info.artworkUrl || null,
+        requester: '🤖 Autoplay',
+        _requesterId: null,
+        _autoplay: true,
+      };
+    } catch (err) {
+      console.error('[Autoplay Error]', err.message);
+      return null;
+    }
+  }
+
   // ── Controls ──────────────────────────────────────────────────────────────
   async replay() {
     if (!this.current) return;
-    this.tracks.unshift(this.current);
+    this.tracks.unshift({ ...this.current });
     this.player.stopTrack();
   }
 
   skip() { this.player.stopTrack(); }
+
+  // Skip to position N in queue (1-based)
+  async skipTo(position) {
+    if (position < 1 || position > this.tracks.length) return false;
+    this.tracks.splice(0, position - 1); // remove songs before target
+    this.player.stopTrack();
+    return true;
+  }
+
+  // Seek to ms position
+  async seek(ms) {
+    await this.player.seekTo(ms);
+    await this._refreshUI();
+  }
 
   async pause() {
     this.player.setPaused(true);
@@ -187,14 +276,9 @@ class MusicQueue {
   }
 
   async toggleLoop() {
-    if (!this.loop && !this.loopQueue) {
-      this.loop = true;            // off → loop song
-    } else if (this.loop) {
-      this.loop = false;
-      this.loopQueue = true;       // loop song → loop queue
-    } else {
-      this.loopQueue = false;      // loop queue → off
-    }
+    if      (!this.loop && !this.loopQueue) this.loop = true;
+    else if (this.loop)                     { this.loop = false; this.loopQueue = true; }
+    else                                    this.loopQueue = false;
     await this._refreshUI();
   }
 
@@ -212,23 +296,21 @@ class MusicQueue {
     await this._refreshUI();
   }
 
-  stop() {
-    this.tracks  = [];
-    this.current = null;
-    this.player.stopTrack();
-  }
+  stop() { this.tracks = []; this.current = null; this.player.stopTrack(); }
 
   _cleanup() {
     if (this._destroyed) return;
     this._destroyed = true;
+    this._stopProgressInterval();
     clearTimeout(this._idleTimer);
     this.tracks  = [];
     this.current = null;
+    this._updateStatus();
     this.client.queues.delete(this.guildId);
     this.client.shoukaku.connections.delete(this.guildId);
     this.client.shoukaku.players.delete(this.guildId);
     if (this._npMessage) {
-      this._npMessage.edit({ components: _disabledComponents(this._npMessage.components) }).catch(() => {});
+      this._npMessage.edit({ components: this._disableButtons(this._npMessage.components) }).catch(() => {});
       this._npMessage = null;
     }
   }
@@ -236,34 +318,21 @@ class MusicQueue {
   async destroy() {
     if (this._destroyed) return;
     this._destroyed = true;
+    this._stopProgressInterval();
     clearTimeout(this._idleTimer);
     this.tracks  = [];
     this.current = null;
+    this._updateStatus();
     this.client.queues.delete(this.guildId);
     if (this._npMessage) {
-      this._npMessage.edit({ components: _disabledComponents(this._npMessage.components) }).catch(() => {});
+      this._npMessage.edit({ components: this._disableButtons(this._npMessage.components) }).catch(() => {});
       this._npMessage = null;
     }
-    try {
-      await this.client.shoukaku.leaveVoiceChannel(this.guildId);
-    } catch (_) {
+    try { await this.client.shoukaku.leaveVoiceChannel(this.guildId); } catch (_) {
       this.client.shoukaku.connections.delete(this.guildId);
       this.client.shoukaku.players.delete(this.guildId);
     }
   }
 }
 
-// Helper: return greyed-out disabled version of existing button rows
-function _disabledComponents(rows) {
-  return rows.map(row => {
-    const newRow = new ActionRowBuilder();
-    newRow.addComponents(
-      row.components.map(btn =>
-        ButtonBuilder.from(btn).setDisabled(true)
-      )
-    );
-    return newRow;
-  });
-}
-
-module.exports = MusicQueue;
+module.exports = { MusicQueue, fmt };
