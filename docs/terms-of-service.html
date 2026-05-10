@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Terms of Service — Zoldieyk Music Bot</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0c0e14;
+      --surface: #13151f;
+      --border: #1e2130;
+      --accent: #5865f2;
+      --accent-dim: rgba(88,101,242,0.12);
+      --text: #e8eaf0;
+      --muted: #7a7f9a;
+      --mono: 'DM Mono', monospace;
+      --serif: 'DM Serif Display', serif;
+      --sans: 'DM Sans', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-weight: 300;
+      line-height: 1.8;
+      min-height: 100vh;
+    }
+
+    /* Background grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(88,101,242,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(88,101,242,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 80px 32px 120px;
+    }
+
+    /* Header */
+    header {
+      margin-bottom: 64px;
+      padding-bottom: 40px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent-dim);
+      border: 1px solid rgba(88,101,242,0.3);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+
+    .badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    h1 {
+      font-family: var(--serif);
+      font-size: clamp(2.2rem, 5vw, 3.2rem);
+      font-weight: 400;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+      margin-bottom: 16px;
+    }
+
+    h1 em {
+      font-style: italic;
+      color: var(--muted);
+    }
+
+    .meta {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    /* Sections */
+    section {
+      margin-bottom: 48px;
+      opacity: 0;
+      transform: translateY(16px);
+      animation: fadeUp 0.5s ease forwards;
+    }
+
+    section:nth-child(1)  { animation-delay: 0.05s; }
+    section:nth-child(2)  { animation-delay: 0.10s; }
+    section:nth-child(3)  { animation-delay: 0.15s; }
+    section:nth-child(4)  { animation-delay: 0.20s; }
+    section:nth-child(5)  { animation-delay: 0.25s; }
+    section:nth-child(6)  { animation-delay: 0.30s; }
+    section:nth-child(7)  { animation-delay: 0.35s; }
+    section:nth-child(8)  { animation-delay: 0.40s; }
+    section:nth-child(9)  { animation-delay: 0.45s; }
+    section:nth-child(10) { animation-delay: 0.50s; }
+
+    @keyframes fadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 {
+      font-family: var(--serif);
+      font-size: 1.35rem;
+      font-weight: 400;
+      color: var(--text);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    h2::before {
+      content: attr(data-n);
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      background: var(--accent-dim);
+      border: 1px solid rgba(88,101,242,0.25);
+      border-radius: 4px;
+      padding: 2px 7px;
+      letter-spacing: 0.06em;
+      flex-shrink: 0;
+    }
+
+    p {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-bottom: 12px;
+    }
+
+    p:last-child { margin-bottom: 0; }
+
+    ul {
+      list-style: none;
+      margin: 12px 0;
+    }
+
+    ul li {
+      color: var(--muted);
+      font-size: 0.95rem;
+      padding: 6px 0 6px 20px;
+      position: relative;
+      border-bottom: 1px solid var(--border);
+    }
+
+    ul li:last-child { border-bottom: none; }
+
+    ul li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+      font-family: var(--mono);
+    }
+
+    .highlight-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 6px;
+      padding: 18px 20px;
+      margin: 16px 0;
+    }
+
+    .highlight-box p {
+      margin: 0;
+      font-size: 0.9rem;
+    }
+
+    /* Footer */
+    footer {
+      margin-top: 80px;
+      padding-top: 32px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: gap;
+      gap: 16px;
+    }
+
+    .footer-brand {
+      font-family: var(--serif);
+      font-size: 1.1rem;
+      color: var(--text);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+    }
+
+    .footer-links a {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover { color: var(--accent); }
+
+    @media (max-width: 600px) {
+      .container { padding: 48px 20px 80px; }
+      footer { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="badge">Legal Document</div>
+      <h1>Terms <em>of Service</em></h1>
+      <p class="meta">Zoldieyk Music Bot &nbsp;·&nbsp; Effective: May 2026 &nbsp;·&nbsp; Version 1.0</p>
+    </header>
+
+    <main>
+      <section>
+        <h2 data-n="01">Acceptance of Terms</h2>
+        <p>By adding Zoldieyk Music Bot ("the Bot") to your Discord server or interacting with it in any way, you agree to be bound by these Terms of Service. If you do not agree, do not use the Bot.</p>
+        <p>These terms apply to all users, server administrators, and anyone who interacts with the Bot.</p>
+      </section>
+
+      <section>
+        <h2 data-n="02">Description of Service</h2>
+        <p>Zoldieyk Music Bot is a Discord-based music playback service that allows users to search for and play audio content in voice channels. The Bot uses Lavalink as its audio backend and queries publicly available audio sources.</p>
+        <div class="highlight-box">
+          <p>The Bot is provided free of charge, as-is, with no guaranteed uptime or service level agreement.</p>
+        </div>
+      </section>
+
+      <section>
+        <h2 data-n="03">Permitted Use</h2>
+        <p>You may use the Bot for personal, non-commercial music enjoyment within Discord servers you own or are a member of. Permitted actions include:</p>
+        <ul>
+          <li>Queuing and playing publicly available audio content</li>
+          <li>Using Bot commands to control playback</li>
+          <li>Inviting the Bot to servers you administer</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 data-n="04">Prohibited Use</h2>
+        <p>You may not use the Bot to:</p>
+        <ul>
+          <li>Violate any applicable local, national, or international laws or regulations</li>
+          <li>Infringe on the intellectual property rights of any third party</li>
+          <li>Attempt to abuse, exploit, or reverse-engineer the Bot</li>
+          <li>Use the Bot to harass, threaten, or harm other users</li>
+          <li>Intentionally overload the Bot with excessive requests</li>
+          <li>Use the Bot for any commercial purpose without explicit written permission</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 data-n="05">Intellectual Property & Content</h2>
+        <p>The Bot facilitates playback of audio content from third-party sources. We do not host, store, or own any audio content. Responsibility for the legality of content played rests with the user requesting it.</p>
+        <p>Users are responsible for ensuring their use complies with the terms of service of Discord and any third-party platforms from which content is sourced.</p>
+      </section>
+
+      <section>
+        <h2 data-n="06">Disclaimer of Warranties</h2>
+        <p>The Bot is provided on an "as is" and "as available" basis. We make no warranties, expressed or implied, regarding the Bot's reliability, accuracy, or fitness for any particular purpose.</p>
+        <div class="highlight-box">
+          <p>We do not guarantee uninterrupted service. The Bot may be unavailable at any time due to maintenance, third-party outages, or other factors outside our control.</p>
+        </div>
+      </section>
+
+      <section>
+        <h2 data-n="07">Limitation of Liability</h2>
+        <p>To the fullest extent permitted by law, Zoldieyk Music Bot and its operators shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of or inability to use the Bot.</p>
+      </section>
+
+      <section>
+        <h2 data-n="08">Termination</h2>
+        <p>We reserve the right to terminate or restrict access to the Bot at any time, for any reason, without notice. This includes but is not limited to violations of these Terms of Service.</p>
+        <p>You may stop using the Bot at any time by removing it from your Discord server.</p>
+      </section>
+
+      <section>
+        <h2 data-n="09">Changes to Terms</h2>
+        <p>We reserve the right to modify these Terms at any time. Continued use of the Bot following any changes constitutes your acceptance of the revised Terms. It is your responsibility to review these Terms periodically.</p>
+      </section>
+
+      <section>
+        <h2 data-n="10">Contact</h2>
+        <p>If you have any questions about these Terms of Service, you may contact us through our Discord support server or via GitHub at:</p>
+        <div class="highlight-box">
+          <p>GitHub: <strong>github.com/Weloatef/Zoldieyk-Music-Bot</strong></p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-brand">Zoldieyk Music Bot</div>
+      <div class="footer-links">
+        <a href="privacy-policy.html">Privacy Policy</a>
+        <a href="https://github.com/Weloatef/Zoldieyk-Music-Bot">GitHub</a>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

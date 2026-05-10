@@ -2,14 +2,12 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ActivityType } = require('discord.js');
 const { recordPlay } = require('../music/stats');
 
-// ── Progress bar builder ──────────────────────────────────────────────────────
 function buildProgressBar(position, duration, length = 12) {
   if (!duration || duration <= 0) return '──────────────';
-  const pct      = Math.min(position / duration, 1);
-  const filled   = Math.round(pct * length);
-  const empty    = length - filled;
-  const bar      = '▓'.repeat(filled) + '░'.repeat(empty);
-  return `\`${bar}\` ${fmt(position)} / ${fmt(duration)}`;
+  const pct    = Math.min(position / duration, 1);
+  const filled = Math.round(pct * length);
+  const empty  = length - filled;
+  return `\`${'▓'.repeat(filled)}${'░'.repeat(empty)}\` ${fmt(position)} / ${fmt(duration)}`;
 }
 
 function fmt(ms) {
@@ -29,18 +27,18 @@ class MusicQueue {
     this.player      = player;
     this.client      = client;
     this.tracks      = [];
-    this.history     = [];   // last 20 played songs
+    this.history     = [];
     this.current     = null;
     this.paused      = false;
     this.loop        = false;
     this.loopQueue   = false;
+    this.autoplay    = true;   // ← new: toggleable autoplay
     this.volume      = 100;
     this._idleTimer  = null;
     this._destroyed  = false;
     this._npMessage  = null;
-    this._progressInterval = null; // for live progress bar updates
+    this._progressInterval = null;
 
-    // ── Player events ───────────────────────────────────────────────────────
     this.player.on('end', data => {
       if (data.reason === 'replaced') return;
       if (this.loop      && this.current) this.tracks.unshift({ ...this.current });
@@ -54,22 +52,16 @@ class MusicQueue {
       this._playNext();
     });
 
-    this.player.on('stuck', () => { console.warn('[Stuck]'); this._playNext(); });
-
-    this.player.on('closed', () => {
-      console.warn(`[Player] Closed — guild ${this.guildId}`);
-      this._cleanup();
-    });
-
-    // Position updates from Lavalink (every ~5s)
-    this.player.on('update', () => { /* position lives on this.player.position */ });
+    this.player.on('stuck',   () => { console.warn('[Stuck]'); this._playNext(); });
+    this.player.on('closed',  () => { console.warn(`[Player] Closed — guild ${this.guildId}`); this._cleanup(); });
+    this.player.on('update',  () => {});
   }
 
-  // ── UI builders ────────────────────────────────────────────────────────────
+  // ── UI ─────────────────────────────────────────────────────────────────────
   _buildUI() {
     const t        = this.current;
-    const pos      = this.player.position  || 0;
-    const dur      = t.durationMs          || 0;
+    const pos      = this.player.position || 0;
+    const dur      = t.durationMs         || 0;
     const progress = buildProgressBar(pos, dur);
 
     const embed = new EmbedBuilder()
@@ -77,27 +69,29 @@ class MusicQueue {
       .setTitle('🎵 Now Playing')
       .setDescription(`**[${t.title}](${t.uri})**\n\n${progress}`)
       .addFields(
-        { name: 'Requested by', value: t.requester       || 'Unknown',  inline: true },
-        { name: 'Queue',        value: `${this.tracks.length} song(s)`, inline: true },
+        { name: 'Requested by', value: t.requester            || 'Unknown',  inline: true },
+        { name: 'Queue',        value: `${this.tracks.length} song(s)`,       inline: true },
         { name: 'Loop',         value: this.loop ? '🔁 Song' : this.loopQueue ? '🔁 Queue' : 'Off', inline: true },
-        { name: 'Volume',       value: `🔊 ${this.volume}%`, inline: true },
+        { name: 'Volume',       value: `🔊 ${this.volume}%`,                  inline: true },
+        { name: 'Autoplay',     value: this.autoplay ? '🔄 On' : '⏹ Off',    inline: true },
       )
       .setThumbnail(t.thumbnail || null)
       .setFooter({ text: 'Type a song name to queue more' });
 
     const row1 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('music_replay') .setEmoji('⏮').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('music_pause')  .setEmoji(this.paused ? '▶️' : '⏸').setStyle(this.paused ? ButtonStyle.Success : ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('music_skip')   .setEmoji('⏭').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('music_loop')   .setEmoji('🔁').setStyle(this.loop || this.loopQueue ? ButtonStyle.Success : ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('music_shuffle').setEmoji('🔀').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('music_replay')   .setEmoji('⏮').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('music_pause')    .setEmoji(this.paused ? '▶️' : '⏸').setStyle(this.paused ? ButtonStyle.Success : ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('music_skip')     .setEmoji('⏭').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('music_loop')     .setEmoji('🔁').setStyle(this.loop || this.loopQueue ? ButtonStyle.Success : ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('music_shuffle')  .setEmoji('🔀').setStyle(ButtonStyle.Secondary),
     );
 
     const row2 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('music_voldown').setEmoji('🔉').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('music_queue')  .setEmoji('📋').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('music_stop')   .setEmoji('⏹').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('music_volup')  .setEmoji('🔊').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('music_voldown')  .setEmoji('🔉').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('music_queue')    .setEmoji('📋').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('music_stop')     .setEmoji('⏹').setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId('music_volup')    .setEmoji('🔊').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('music_autoplay') .setEmoji('🔄').setStyle(this.autoplay ? ButtonStyle.Success : ButtonStyle.Secondary),
     );
 
     return { embed, components: [row1, row2] };
@@ -112,7 +106,6 @@ class MusicQueue {
   }
 
   async _sendNowPlaying() {
-    // Disable old NP message
     if (this._npMessage) {
       try { await this._npMessage.edit({ components: this._disableButtons(this._npMessage.components) }); } catch (_) {}
     }
@@ -122,7 +115,6 @@ class MusicQueue {
     this._startProgressInterval();
   }
 
-  // Update progress bar every 15s without spamming Discord
   _startProgressInterval() {
     this._stopProgressInterval();
     this._progressInterval = setInterval(async () => {
@@ -142,7 +134,6 @@ class MusicQueue {
     try { await this._npMessage.edit({ embeds: [embed], components }); } catch (_) {}
   }
 
-  // ── Update bot's Discord status with current song ─────────────────────────
   _updateStatus() {
     if (!this.current) {
       this.client.user.setActivity('🎵 Type a song name!', { type: ActivityType.Listening });
@@ -151,7 +142,7 @@ class MusicQueue {
     }
   }
 
-  // ── Queue management ───────────────────────────────────────────────────────
+  // ── Playback ───────────────────────────────────────────────────────────────
   async addTrack(track) {
     this.tracks.push(track);
     if (!this.current) await this._playNext();
@@ -163,8 +154,8 @@ class MusicQueue {
     if (this._destroyed) return;
 
     if (this.tracks.length === 0) {
-      // Autoplay — find related song
-      if (this.current) {
+      // Only autoplay if enabled
+      if (this.autoplay && this.current) {
         const related = await this._findRelated();
         if (related) {
           console.log(`[Autoplay] Queuing: ${related.title}`);
@@ -172,7 +163,6 @@ class MusicQueue {
         }
       }
 
-      // Still nothing after autoplay attempt
       if (this.tracks.length === 0) {
         this.current = null;
         this._updateStatus();
@@ -188,11 +178,9 @@ class MusicQueue {
     this.current = this.tracks.shift();
     this.paused  = false;
 
-    // Record in history (keep last 20)
     this.history.unshift({ ...this.current });
     if (this.history.length > 20) this.history.pop();
 
-    // Record stats
     if (this.current._requesterId) {
       recordPlay(this.current, this.current._requesterId, this.current.requester);
     }
@@ -209,30 +197,26 @@ class MusicQueue {
     }
   }
 
-  // ── Autoplay: search for related song ────────────────────────────────────
   async _findRelated() {
     if (!this.current) return null;
     try {
-      const node   = this.client.shoukaku.getIdealNode();
+      const node  = this.client.shoukaku.getIdealNode();
       if (!node) return null;
-      // Search YouTube for artist/title minus common words
-      const clean  = this.current.title.replace(/\(.*?\)|\[.*?\]|ft\..*|feat\..*|official.*|video.*/gi, '').trim();
-      const query  = `ytsearch:${clean} mix`;
-      const result = await node.rest.resolve(query);
+      const clean = this.current.title.replace(/\(.*?\)|\[.*?\]|ft\..*|feat\..*|official.*|video.*/gi, '').trim();
+      const result = await node.rest.resolve(`ytsearch:${clean} mix`);
       if (result?.loadType !== 'search' || !result.data?.length) return null;
-      // Pick a result that isn't the current song
       const pick = result.data.find(t => t.info.uri !== this.current.uri);
       if (!pick) return null;
       return {
-        encoded  : pick.encoded,
-        title    : pick.info.title,
-        uri      : pick.info.uri,
-        duration : fmt(pick.info.length),
-        durationMs: pick.info.length,
-        thumbnail: pick.info.artworkUrl || null,
-        requester: '🤖 Autoplay',
+        encoded     : pick.encoded,
+        title       : pick.info.title,
+        uri         : pick.info.uri,
+        duration    : fmt(pick.info.length),
+        durationMs  : pick.info.length,
+        thumbnail   : pick.info.artworkUrl || null,
+        requester   : '🤖 Autoplay',
         _requesterId: null,
-        _autoplay: true,
+        _autoplay   : true,
       };
     } catch (err) {
       console.error('[Autoplay Error]', err.message);
@@ -240,7 +224,13 @@ class MusicQueue {
     }
   }
 
-  // ── Controls ──────────────────────────────────────────────────────────────
+  // ── Controls ───────────────────────────────────────────────────────────────
+  async toggleAutoplay() {
+    this.autoplay = !this.autoplay;
+    await this._refreshUI();
+    return this.autoplay;
+  }
+
   async replay() {
     if (!this.current) return;
     this.tracks.unshift({ ...this.current });
@@ -249,15 +239,13 @@ class MusicQueue {
 
   skip() { this.player.stopTrack(); }
 
-  // Skip to position N in queue (1-based)
   async skipTo(position) {
     if (position < 1 || position > this.tracks.length) return false;
-    this.tracks.splice(0, position - 1); // remove songs before target
+    this.tracks.splice(0, position - 1);
     this.player.stopTrack();
     return true;
   }
 
-  // Seek to ms position
   async seek(ms) {
     await this.player.seekTo(ms);
     await this._refreshUI();

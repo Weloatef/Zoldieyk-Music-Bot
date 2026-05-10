@@ -5,11 +5,7 @@ const { getTopSongs, getUserStats, getTopUsers } = require('../music/stats');
 
 const ITEMS_PER_PAGE = 10;
 
-// ── Spotify URL → search query converter ─────────────────────────────────────
 function spotifyToSearch(url) {
-  // Extract track/album/playlist name from URL for YouTube search fallback
-  // Lavalink with LavaSrc plugin handles spotify: URIs natively;
-  // without the plugin we convert to a ytsearch query
   const trackMatch = url.match(/spotify\.com\/track\/([A-Za-z0-9]+)/);
   if (trackMatch) return { type: 'spotify_track', id: trackMatch[1] };
   const playlistMatch = url.match(/spotify\.com\/playlist\/([A-Za-z0-9]+)/);
@@ -23,7 +19,6 @@ function isSpotifyUrl(url) {
   return /open\.spotify\.com\/(track|playlist|album)\//.test(url);
 }
 
-// ── Parse time string "1:30" or "90" → ms ─────────────────────────────────
 function parseTime(str) {
   if (!str) return null;
   if (/^\d+$/.test(str)) return parseInt(str) * 1000;
@@ -33,13 +28,12 @@ function parseTime(str) {
   return null;
 }
 
-// ── Queue embed for a specific page ──────────────────────────────────────────
 function buildQueueEmbed(queue, page) {
-  const total    = queue.tracks.length;
-  const pages    = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
-  page           = Math.max(0, Math.min(page, pages - 1));
-  const slice    = queue.tracks.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE);
-  const offset   = page * ITEMS_PER_PAGE;
+  const total = queue.tracks.length;
+  const pages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
+  page        = Math.max(0, Math.min(page, pages - 1));
+  const slice  = queue.tracks.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE);
+  const offset = page * ITEMS_PER_PAGE;
 
   const list = slice.length
     ? slice.map((t, i) => `**${offset + i + 1}.** [${t.title}](${t.uri}) — \`${t.duration}\` • ${t.requester}${t._autoplay ? ' 🤖' : ''}`).join('\n')
@@ -70,7 +64,6 @@ function buildQueueEmbed(queue, page) {
   return { embed, components: total > ITEMS_PER_PAGE ? [row] : [], page, pages };
 }
 
-// ── Dot command handler ───────────────────────────────────────────────────────
 async function handleDotCommand(cmd, args, message, client) {
   const queue = client.queues.get(message.guildId);
 
@@ -98,6 +91,7 @@ async function handleDotCommand(cmd, args, message, client) {
         '',
         '**Settings**',
         '`.loop` — Cycle: Off → Song → Queue',
+        '`.autoplay` — Toggle autoplay on/off',
         '`.volume <1-100>` — Set volume',
         '',
         '**Stats**',
@@ -130,8 +124,8 @@ async function handleDotCommand(cmd, args, message, client) {
       .setColor(0x5865F2)
       .setTitle(`📊 Stats for ${message.author.username}`)
       .addFields(
-        { name: 'Songs Queued',  value: stats ? `${stats.count}` : '0',            inline: true },
-        { name: 'Server Rank',   value: rank ? `#${rank}` : 'Unranked',            inline: true },
+        { name: 'Songs Queued', value: stats ? `${stats.count}` : '0', inline: true },
+        { name: 'Server Rank',  value: rank ? `#${rank}` : 'Unranked', inline: true },
       );
     if (topUsers.length) {
       embed.addFields({
@@ -203,30 +197,31 @@ async function handleDotCommand(cmd, args, message, client) {
       const target = queue.tracks[pos - 1]?.title || `#${pos}`;
       const ok = await queue.skipTo(pos);
       if (!ok) return message.reply('❌ Could not skip to that position.');
-      return message.reply(`⏭ Skipping to **${target}**.`);
+      return message.reply(`⏭️ Skipping to **${target}**.`);
     }
 
     case 'queue':
     case 'q': {
-      if (!queue.tracks.length && !queue.current)
-        return message.reply('📭 The queue is empty.');
       const { embed, components } = buildQueueEmbed(queue, 0);
       return message.reply({ embeds: [embed], components });
     }
 
     case 'np':
     case 'nowplaying': {
-      const t   = queue.current;
+      const t = queue.current;
       const pos = queue.player.position || 0;
       const dur = t.durationMs || 0;
+      const bar = dur > 0
+        ? `\`${'▓'.repeat(Math.round(Math.min(pos/dur,1)*12))}${'░'.repeat(12-Math.round(Math.min(pos/dur,1)*12))}\` ${fmt(pos)} / ${fmt(dur)}`
+        : '──────────────';
       const embed = new EmbedBuilder()
         .setColor(0x1DB954)
         .setTitle('🎵 Now Playing')
-        .setDescription(`**[${t.title}](${t.uri})**\n\n${require('../queue/MusicQueue').fmt ? '' : ''}` +
-          `\`${'▓'.repeat(Math.round(Math.min(pos/dur,1)*12))}${'░'.repeat(12-Math.round(Math.min(pos/dur,1)*12))}\` ${fmt(pos)} / ${fmt(dur)}`)
+        .setDescription(`**[${t.title}](${t.uri})**\n\n${bar}`)
         .addFields(
-          { name: 'Requested by', value: t.requester || 'Unknown', inline: true },
+          { name: 'Requested by', value: t.requester       || 'Unknown',  inline: true },
           { name: 'Loop',         value: queue.loop ? '🔁 Song' : queue.loopQueue ? '🔁 Queue' : 'Off', inline: true },
+          { name: 'Autoplay',     value: queue.autoplay ? '🔄 On' : '⏹ Off', inline: true },
           { name: 'Volume',       value: `🔊 ${queue.volume}%`, inline: true },
         )
         .setThumbnail(t.thumbnail || null);
@@ -236,6 +231,11 @@ async function handleDotCommand(cmd, args, message, client) {
     case 'loop':
       await queue.toggleLoop();
       return message.reply(queue.loop ? '🔁 Loop **song** enabled.' : queue.loopQueue ? '🔁 Loop **queue** enabled.' : '➡️ Loop disabled.');
+
+    case 'autoplay': {
+      const state = await queue.toggleAutoplay();
+      return message.reply(state ? '🔄 Autoplay **enabled**.' : '⏹ Autoplay **disabled**.');
+    }
 
     case 'shuffle':
       if (!queue.tracks.length) return message.reply('📭 Nothing to shuffle.');
@@ -281,21 +281,17 @@ module.exports = {
     const content = message.content.trim();
     if (!content) return;
 
-    // ── Queue page button interactions come as button clicks, not messages.
-    // ── Handle dot commands ──────────────────────────────────────────────────
     if (content.startsWith('.')) {
       const [rawCmd, ...args] = content.slice(1).trim().split(/\s+/);
       const cmd = rawCmd.toLowerCase();
       const DOT_COMMANDS = new Set([
         'skip','stop','pause','resume','queue','q','np','nowplaying',
-        'loop','shuffle','remove','clear','volume','vol','replay',
+        'loop','autoplay','shuffle','remove','clear','volume','vol','replay',
         'seek','skipto','history','topsongs','mystats','help'
       ]);
       if (DOT_COMMANDS.has(cmd)) return handleDotCommand(cmd, args, message, client);
-      // Unknown dot command — fall through to search (e.g. ".blinding lights" searches)
     }
 
-    // ── Song search / play ───────────────────────────────────────────────────
     const query = content.startsWith('.') ? content.slice(1).trim() : content;
     if (!query) return;
 
@@ -307,25 +303,16 @@ module.exports = {
     const node = client.shoukaku.getIdealNode();
     if (!node) return searching.edit('❌ No Lavalink nodes available.');
 
-    // ── Resolve search query (Spotify → YouTube fallback) ───────────────────
     let searchQuery = query;
-    let spotifyMeta = null;
 
     if (isSpotifyUrl(query)) {
-      spotifyMeta = spotifyToSearch(query);
-      if (!spotifyMeta) return searching.edit('❌ Could not parse Spotify URL.');
-
-      // Try native Lavalink Spotify support first (works if LavaSrc plugin installed)
-      // If that fails, fall back to extracting track name and searching YouTube
+      spotifyToSearch(query); // parse but we try native first
       try {
         const directResult = await node.rest.resolve(query);
         if (directResult?.data && directResult.loadType !== 'error' && directResult.loadType !== 'empty') {
-          // Lavalink handled Spotify natively ✅
           return await processResult(directResult, query, message, searching, voiceChannel, client);
         }
       } catch (_) {}
-
-      // Fallback: can't resolve Spotify directly — tell user we need track name
       return searching.edit(
         '❌ Your Lavalink node doesn\'t support Spotify URLs directly.\n' +
         '💡 Copy the song name from Spotify and type it instead, or ask your admin to install the **LavaSrc** plugin on the Lavalink server.'
@@ -347,7 +334,6 @@ module.exports = {
   },
 };
 
-// ── Shared result processor ──────────────────────────────────────────────────
 async function processResult(result, query, message, searching, voiceChannel, client) {
   if (!result?.data) return searching.edit(`❌ No results found for **${query}**.`);
 
@@ -370,7 +356,6 @@ async function processResult(result, query, message, searching, voiceChannel, cl
     _autoplay    : false,
   });
 
-  // ── Get or create queue ────────────────────────────────────────────────────
   let queue = client.queues.get(message.guildId);
 
   if (!queue) {

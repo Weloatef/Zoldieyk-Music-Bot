@@ -82,6 +82,15 @@ module.exports = {
         }).catch(() => {});
         break;
 
+      case 'music_autoplay': {
+        const state = await queue.toggleAutoplay();
+        await interaction.followUp({
+          content: state ? '🔄 Autoplay **enabled**' : '⏹ Autoplay **disabled**',
+          flags: 64,
+        }).catch(() => {});
+        break;
+      }
+
       case 'music_shuffle':
         if (!queue.tracks.length) {
           await interaction.followUp({ content: '📭 Nothing to shuffle.', ephemeral: true }).catch(() => {});

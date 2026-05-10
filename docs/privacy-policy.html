@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — Zoldieyk Music Bot</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0c0e14;
+      --surface: #13151f;
+      --border: #1e2130;
+      --accent: #5865f2;
+      --accent-dim: rgba(88,101,242,0.12);
+      --green: #23d18b;
+      --green-dim: rgba(35,209,139,0.10);
+      --text: #e8eaf0;
+      --muted: #7a7f9a;
+      --mono: 'DM Mono', monospace;
+      --serif: 'DM Serif Display', serif;
+      --sans: 'DM Sans', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-weight: 300;
+      line-height: 1.8;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(88,101,242,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(88,101,242,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 80px 32px 120px;
+    }
+
+    header {
+      margin-bottom: 64px;
+      padding-bottom: 40px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--green-dim);
+      border: 1px solid rgba(35,209,139,0.3);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--green);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+
+    .badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    h1 {
+      font-family: var(--serif);
+      font-size: clamp(2.2rem, 5vw, 3.2rem);
+      font-weight: 400;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+      margin-bottom: 16px;
+    }
+
+    h1 em {
+      font-style: italic;
+      color: var(--muted);
+    }
+
+    .meta {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    /* No data banner */
+    .no-data-banner {
+      background: var(--green-dim);
+      border: 1px solid rgba(35,209,139,0.25);
+      border-radius: 10px;
+      padding: 24px 28px;
+      margin-bottom: 48px;
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .no-data-banner .icon {
+      font-size: 1.6rem;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .no-data-banner h3 {
+      font-family: var(--serif);
+      font-size: 1.1rem;
+      font-weight: 400;
+      color: var(--green);
+      margin-bottom: 6px;
+    }
+
+    .no-data-banner p {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    section {
+      margin-bottom: 48px;
+      opacity: 0;
+      transform: translateY(16px);
+      animation: fadeUp 0.5s ease forwards;
+    }
+
+    section:nth-child(1)  { animation-delay: 0.05s; }
+    section:nth-child(2)  { animation-delay: 0.10s; }
+    section:nth-child(3)  { animation-delay: 0.15s; }
+    section:nth-child(4)  { animation-delay: 0.20s; }
+    section:nth-child(5)  { animation-delay: 0.25s; }
+    section:nth-child(6)  { animation-delay: 0.30s; }
+    section:nth-child(7)  { animation-delay: 0.35s; }
+    section:nth-child(8)  { animation-delay: 0.40s; }
+
+    @keyframes fadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 {
+      font-family: var(--serif);
+      font-size: 1.35rem;
+      font-weight: 400;
+      color: var(--text);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    h2::before {
+      content: attr(data-n);
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      background: var(--accent-dim);
+      border: 1px solid rgba(88,101,242,0.25);
+      border-radius: 4px;
+      padding: 2px 7px;
+      letter-spacing: 0.06em;
+      flex-shrink: 0;
+    }
+
+    p {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-bottom: 12px;
+    }
+
+    p:last-child { margin-bottom: 0; }
+
+    ul {
+      list-style: none;
+      margin: 12px 0;
+    }
+
+    ul li {
+      color: var(--muted);
+      font-size: 0.95rem;
+      padding: 6px 0 6px 20px;
+      position: relative;
+      border-bottom: 1px solid var(--border);
+    }
+
+    ul li:last-child { border-bottom: none; }
+
+    ul li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+      font-family: var(--mono);
+    }
+
+    .highlight-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 6px;
+      padding: 18px 20px;
+      margin: 16px 0;
+    }
+
+    .highlight-box p { margin: 0; font-size: 0.9rem; }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 0.88rem;
+    }
+
+    .data-table th {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-align: left;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .data-table td {
+      padding: 10px 14px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .data-table tr:last-child td { border-bottom: none; }
+
+    .tag {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .tag.volatile {
+      background: rgba(35,209,139,0.1);
+      color: var(--green);
+      border: 1px solid rgba(35,209,139,0.25);
+    }
+
+    footer {
+      margin-top: 80px;
+      padding-top: 32px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .footer-brand {
+      font-family: var(--serif);
+      font-size: 1.1rem;
+      color: var(--text);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+    }
+
+    .footer-links a {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover { color: var(--accent); }
+
+    @media (max-width: 600px) {
+      .container { padding: 48px 20px 80px; }
+      footer { flex-direction: column; align-items: flex-start; }
+      .data-table { font-size: 0.8rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="badge">Privacy Policy</div>
+      <h1>Your Privacy <em>Matters</em></h1>
+      <p class="meta">Zoldieyk Music Bot &nbsp;·&nbsp; Effective: May 2026 &nbsp;·&nbsp; Version 1.0</p>
+    </header>
+
+    <div class="no-data-banner">
+      <div class="icon">🔒</div>
+      <div>
+        <h3>We do not store your personal data</h3>
+        <p>Zoldieyk Music Bot is a stateless service. All session data is held in memory only and is permanently erased when the bot restarts. No databases. No logs saved to disk. No tracking.</p>
+      </div>
+    </div>
+
+    <main>
+      <section>
+        <h2 data-n="01">Overview</h2>
+        <p>This Privacy Policy explains what information Zoldieyk Music Bot ("the Bot", "we", "us") accesses, how it is used, and how long it is retained. We are committed to handling any data with transparency and care.</p>
+        <p>By using the Bot, you acknowledge and agree to the practices described in this policy.</p>
+      </section>
+
+      <section>
+        <h2 data-n="02">Information We Access</h2>
+        <p>To function, the Bot reads the following Discord data during an active session:</p>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Why</th>
+              <th>Retention</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Discord username</td>
+              <td>Display "Requested by" in Now Playing embed</td>
+              <td><span class="tag volatile">Session only</span></td>
+            </tr>
+            <tr>
+              <td>Message content</td>
+              <td>Parse song search queries and dot commands</td>
+              <td><span class="tag volatile">Not stored</span></td>
+            </tr>
+            <tr>
+              <td>Voice channel ID</td>
+              <td>Join the correct voice channel for playback</td>
+              <td><span class="tag volatile">Session only</span></td>
+            </tr>
+            <tr>
+              <td>Guild (server) ID</td>
+              <td>Manage per-server queues</td>
+              <td><span class="tag volatile">Session only</span></td>
+            </tr>
+            <tr>
+              <td>Song request counts</td>
+              <td>Power .topsongs and .mystats leaderboards</td>
+              <td><span class="tag volatile">Session only</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2 data-n="03">What We Do Not Collect</h2>
+        <p>We do not collect, store, or process:</p>
+        <ul>
+          <li>Real names, email addresses, or any personally identifiable information</li>
+          <li>IP addresses or device identifiers</li>
+          <li>Private messages or direct messages</li>
+          <li>Payment or financial information of any kind</li>
+          <li>Messages from channels other than the designated music channel</li>
+          <li>Any data from servers the Bot is not explicitly invited to</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 data-n="04">Data Retention</h2>
+        <p>All data held by the Bot exists exclusively in memory (RAM) during runtime. This means:</p>
+        <div class="highlight-box">
+          <p>Every queue, play count, history entry, and username is permanently erased when the Bot restarts. Nothing is written to disk, a database, or any external storage. There is nothing to delete — it is already gone.</p>
+        </div>
+      </section>
+
+      <section>
+        <h2 data-n="05">Third-Party Services</h2>
+        <p>The Bot interacts with the following third-party services to deliver audio:</p>
+        <ul>
+          <li><strong>Discord</strong> — platform provider. Subject to Discord's own Privacy Policy at discord.com/privacy</li>
+          <li><strong>Lavalink / Serenetia public node</strong> — audio streaming backend. Song search queries are passed to this service to resolve audio</li>
+          <li><strong>YouTube</strong> — audio source. Search queries may be sent to YouTube's servers via the Lavalink node</li>
+        </ul>
+        <p>We do not control the data practices of these third parties. Please review their respective privacy policies.</p>
+      </section>
+
+      <section>
+        <h2 data-n="06">Children's Privacy</h2>
+        <p>The Bot is not directed at children under the age of 13. We do not knowingly collect any information from children. If you believe a child has interacted with the Bot and you have concerns, please contact us.</p>
+      </section>
+
+      <section>
+        <h2 data-n="07">Changes to This Policy</h2>
+        <p>We may update this Privacy Policy from time to time. Any changes will be posted at the same URL. Continued use of the Bot after changes are posted constitutes your acceptance of the revised policy.</p>
+      </section>
+
+      <section>
+        <h2 data-n="08">Contact</h2>
+        <p>If you have questions or concerns about this Privacy Policy, please reach out through:</p>
+        <div class="highlight-box">
+          <p>GitHub: <strong>github.com/Weloatef/Zoldieyk-Music-Bot</strong></p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-brand">Zoldieyk Music Bot</div>
+      <div class="footer-links">
+        <a href="terms-of-service.html">Terms of Service</a>
+        <a href="https://github.com/Weloatef/Zoldieyk-Music-Bot">GitHub</a>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>
