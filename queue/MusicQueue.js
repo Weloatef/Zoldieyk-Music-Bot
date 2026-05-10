@@ -204,7 +204,7 @@ class MusicQueue {
       const node = this.client.shoukaku.getIdealNode();
       if (!node) return null;
 
-      // Clean current title heavily
+      // Clean current title
       const clean = this.current.title
         .replace(/\(.*?\)|\[.*?\]/g, '')
         .replace(/ft\..*|feat\..*/gi, '')
@@ -213,39 +213,7 @@ class MusicQueue {
         .replace(/lyrics?.*/gi, '')
         .trim();
 
-      // Extract likely artist
-      let artist = '';
-
-      if (clean.includes(' - ')) {
-        artist = clean.split(' - ')[0].trim();
-      } else {
-        artist = clean.split(' ').slice(0, 2).join(' ');
-      }
-
-      // Rotate autoplay discovery strategies
-      const queries = [
-        `${artist} popular songs`,
-        `${artist} best hits`,
-        `${artist} top tracks`,
-        `songs like ${clean}`,
-        `${artist} music mix`,
-        `${artist} similar artists`,
-      ];
-
-      // Rotate based on history count
-      const query = queries[this.history.length % queries.length];
-
-      console.log(`[Autoplay] Searching: ${query}`);
-
-      const result = await node.rest.resolve(`ytsearch:${query}`);
-
-      if (result?.loadType !== 'search' || !result.data?.length) {
-        return null;
-      }
-
-      // Avoid repeats and same-title variants
-      const historyUris = new Set(this.history.map(t => t.uri));
-
+      // Normalize helper
       const normalize = str =>
         str
           .toLowerCase()
@@ -255,16 +223,97 @@ class MusicQueue {
 
       const currentNormalized = normalize(clean);
 
-      const pick = result.data.find(t => {
+      // Try extracting artist
+      let artist = '';
+
+      if (clean.includes(' - ')) {
+        artist = clean.split(' - ')[0].trim();
+      } else {
+        artist = clean.split(' ').slice(0, 2).join(' ');
+      }
+
+      // Weighted autoplay discovery
+      const artistQueries = [
+        `${artist} official audio`,
+        `${artist} song`,
+        `${artist} newest song`,
+        `${artist} music`,
+      ];
+
+      const discoveryQueries = [
+        `songs like ${clean}`,
+        `music similar to ${clean}`,
+        `recommended songs like ${clean}`,
+        `${clean} radio`,
+        `best chill songs`,
+        `viral music mix`,
+        `best pop songs`,
+      ];
+
+      // 30% same artist / 70% broader discovery
+      const useArtist = Math.random() < 0.3;
+
+      const pool = useArtist
+        ? artistQueries
+        : discoveryQueries;
+
+      const query =
+        pool[Math.floor(Math.random() * pool.length)];
+
+      console.log(`[Autoplay] Searching: ${query}`);
+
+      const result = await node.rest.resolve(`ytsearch:${query}`);
+
+      if (
+        result?.loadType !== 'search' ||
+        !result.data?.length
+      ) {
+        return null;
+      }
+
+      // Shuffle results for variety
+      const shuffled = result.data.sort(
+        () => Math.random() - 0.5
+      );
+
+      const historyUris = new Set(
+        this.history.map(t => t.uri)
+      );
+
+      const currentAuthor = normalize(
+        this.current.author || ''
+      );
+
+      const pick = shuffled.find(t => {
         const title = t.info.title.toLowerCase();
 
-        // Skip same URI
-        if (t.info.uri === this.current.uri) return false;
+        const normalizedTitle = normalize(title);
 
-        // Skip already played
-        if (historyUris.has(t.info.uri)) return false;
+        const trackAuthor = normalize(
+          t.info.author || ''
+        );
 
-        // Skip remix/slowed/etc
+        const durationMs = t.info.length || 0;
+
+        // Reject same URI
+        if (t.info.uri === this.current.uri) {
+          return false;
+        }
+
+        // Reject already played
+        if (historyUris.has(t.info.uri)) {
+          return false;
+        }
+
+        // Reject same song name
+        if (
+          normalizedTitle.includes(currentNormalized) ||
+          currentNormalized.includes(normalizedTitle)
+        ) {
+          return false;
+        }
+
+        // Reject remix/slowed/nightcore/etc
         if (
           title.includes('slowed') ||
           title.includes('reverb') ||
@@ -275,13 +324,32 @@ class MusicQueue {
           return false;
         }
 
-        // Skip titles too similar to current song
-        const normalizedTitle = normalize(title);
-
-        // Reject if title contains original song name
+        // Reject playlists/mixes/compilations
         if (
-          normalizedTitle.includes(currentNormalized) ||
-          currentNormalized.includes(normalizedTitle)
+          title.includes('mix') ||
+          title.includes('playlist') ||
+          title.includes('compilation') ||
+          title.includes('greatest hits') ||
+          title.includes('full album') ||
+          title.includes('1 hour') ||
+          title.includes('live stream')
+        ) {
+          return false;
+        }
+
+        // Reject extremely long videos
+        if (durationMs > 10 * 60 * 1000) {
+          return false;
+        }
+
+        // Reject suspiciously similar uploads
+        const durationDiff = Math.abs(
+          durationMs - (this.current.durationMs || 0)
+        );
+
+        if (
+          trackAuthor === currentAuthor &&
+          durationDiff < 5000
         ) {
           return false;
         }
