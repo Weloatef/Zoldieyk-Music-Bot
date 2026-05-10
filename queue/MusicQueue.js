@@ -289,18 +289,18 @@ class MusicQueue {
         }
         // Skip remix/slowed/etc
         if (
-          titleNorm.includes('slowed') ||
-          titleNorm.includes('reverb') ||
-          titleNorm.includes('nightcore') ||
-          titleNorm.includes('sped up') ||
-          titleNorm.includes('remix') ||
-          titleNorm.includes('mix') ||
-          titleNorm.includes('playlist') ||
-          titleNorm.includes('compilation') ||
-          titleNorm.includes('greatest hits') ||
-          titleNorm.includes('full album') ||
-          titleNorm.includes('1 hour') ||
-          titleNorm.includes('live stream')
+          title.includes('slowed') ||
+          title.includes('reverb') ||
+          title.includes('nightcore') ||
+          title.includes('sped up') ||
+          title.includes('remix') ||
+          title.includes('mix') ||
+          title.includes('playlist') ||
+          title.includes('compilation') ||
+          title.includes('greatest hits') ||
+          title.includes('full album') ||
+          title.includes('1 hour') ||
+          title.includes('live stream')
         ) {
           return false;
         }
