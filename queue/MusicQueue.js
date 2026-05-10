@@ -229,36 +229,54 @@ class MusicQueue {
           .replace(/\s+/g, ' ')
           .trim();
 
-      // ---------- FINGERPRINT (CRITICAL FIX) ----------
       const fingerprint = (str) =>
         normalize(str)
-          .replace(/\b(remix|official|video|audio|lyrics|version|edit|live|ft|feat)\b/g, '')
+          .replace(/\b(remix|official|video|audio|lyrics|version|edit|live|ft|feat|cover)\b/g, '')
           .replace(/\s+/g, ' ')
           .trim();
 
       const currentFp = fingerprint(this.current.title);
 
       this.historyFp = this.historyFp || new Set();
+      this.artistCount = this.artistCount || new Map();
 
-      // ---------- ESCAPE MODE (prevents loops) ----------
+      // ---------- CLUSTER CONTROL ----------
+      this.clusterLock = this.clusterLock || { artist: null, count: 0 };
+
+      const authorNow = (this.current.author || artist || '').toLowerCase();
+
+      // reset cluster if artist changes
+      if (this.clusterLock.artist !== authorNow) {
+        this.clusterLock.artist = authorNow;
+        this.clusterLock.count = 0;
+      }
+
+      // force escape after repetition
+      const forceEscape = this.clusterLock.count >= 3;
+
       this.autoplayStep = (this.autoplayStep || 0) + 1;
-      const forceExplore = this.autoplayStep % 5 === 0;
+      const periodicEscape = this.autoplayStep % 5 === 0;
 
-      // ---------- QUERY STRATEGY ----------
+      // ---------- VIBE-BASED SEARCH (IMPORTANT FIX) ----------
       let query;
 
-      if (forceExplore) {
-        query = `trending indie pop 2026`;
+      if (forceEscape || periodicEscape) {
+        query = [
+          'trending global music 2026',
+          'top hit songs worldwide',
+          'popular music mix 2026',
+          'viral songs playlist',
+          'best songs this year'
+        ][Math.floor(Math.random() * 5)];
       } else {
-        const strategies = [
-          { q: `${artist} songs`, w: 20 },
-          { q: `songs like ${clean}`, w: 35 },
-          { q: `similar to ${clean}`, w: 25 },
-          { q: `underrated songs like ${clean}`, w: 20 },
-        ];
-
-        const pool = strategies.flatMap(s => Array(s.w).fill(s.q));
-        query = pool[Math.floor(Math.random() * pool.length)];
+        query = [
+          `songs like this`,
+          `similar vibe music`,
+          `recommended songs`,
+          `music mix similar style`,
+          `discover new songs`,
+          `trending pop songs`
+        ][Math.floor(Math.random() * 6)];
       }
 
       console.log(`[Autoplay] Searching: ${query}`);
@@ -269,13 +287,9 @@ class MusicQueue {
         return null;
       }
 
-      // ---------- HISTORY ----------
       const historyIds = new Set(
         this.history.map(t => t.identifier || t.uri)
       );
-
-      // ---------- ARTIST MEMORY ----------
-      this.artistCount = this.artistCount || new Map();
 
       const similarity = (a, b) => {
         const setA = new Set(a.split(' '));
@@ -289,15 +303,14 @@ class MusicQueue {
         .filter(t => {
           const title = normalize(t.info.title);
           const fp = fingerprint(t.info.title);
+          const author = (t.info.author || '').toLowerCase();
 
+          // hard duplicate block
           if (t.info.uri === this.current.uri) return false;
-
           if (historyIds.has(t.info.identifier || t.info.uri)) return false;
 
-          // 🚨 CRITICAL FIX: block same song family
+          // prevent same song family loop (THIS FIXES DESPACITO LOOP)
           if (this.historyFp.has(fp)) return false;
-
-          // prevent looping back into same cluster
           if (fp === currentFp) return false;
           if (fp.includes(currentFp) || currentFp.includes(fp)) return false;
 
@@ -306,23 +319,19 @@ class MusicQueue {
             return false;
           }
 
-          // skip junk variants
+          // remove bad variants
           if (
+            title.includes('remix') ||
             title.includes('slowed') ||
             title.includes('reverb') ||
             title.includes('nightcore') ||
             title.includes('sped up') ||
-            title.includes('remix') ||
             title.includes('mix') ||
             title.includes('playlist') ||
             title.includes('compilation') ||
-            title.includes('greatest hits') ||
-            title.includes('full album') ||
             title.includes('1 hour') ||
-            title.includes('live stream')
-          ) {
-            return false;
-          }
+            title.includes('live')
+          ) return false;
 
           if ((t.info.length || 0) > 8 * 60 * 1000) return false;
 
@@ -344,15 +353,18 @@ class MusicQueue {
             score += 15;
           }
 
-          // penalize repeated artists
-          score -= artistCount * 20;
+          // penalize repetition
+          score -= artistCount * 25;
 
-          // penalize near-duplicate family
-          if (fp.includes(currentFp)) score -= 60;
+          // penalize same cluster reuse
+          if (this.clusterLock.artist === author) {
+            score -= 40;
+          }
 
-          // prefer mid-length songs
-          const len = (t.info.length || 0) / 1000;
-          if (len > 150 && len < 360) score += 10;
+          // diversity bonus
+          if (!author.includes(artist.toLowerCase())) {
+            score += 10;
+          }
 
           return { t, score, fp };
         })
@@ -364,13 +376,16 @@ class MusicQueue {
 
       // ---------- UPDATE MEMORY ----------
       const pickedFp = fingerprint(pick.info.title);
+      const pickedAuthor = (pick.info.author || 'unknown').toLowerCase();
+
       this.historyFp.add(pickedFp);
 
-      const pickedArtist = (pick.info.author || 'unknown').toLowerCase();
       this.artistCount.set(
-        pickedArtist,
-        (this.artistCount.get(pickedArtist) || 0) + 1
+        pickedAuthor,
+        (this.artistCount.get(pickedAuthor) || 0) + 1
       );
+
+      this.clusterLock.count++;
 
       return {
         encoded: pick.encoded,
