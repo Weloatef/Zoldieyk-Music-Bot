@@ -257,7 +257,7 @@ class MusicQueue {
       // ---------- FINGERPRINT (song-family detection) ----------
       const fingerprint = (str) =>
         normalize(str)
-          .replace(/\b(remix|official|video|audio|lyrics|version|edit|live|ft|feat|cover|explicit|hd|mv|mv)\b/g, '')
+          .replace(/\b(remix|official|video|audio|lyrics|letra|version|edit|live|ft|feat|cover|explicit|hd|mv|mv|mashup|loop|transition|muffled|perfect|ending|best part|blind|audition|voice|kids|france|belgique|the voice|easy lyrics|english translation|with audio)\b/g, '')
           .replace(/\s+/g, ' ')
           .trim();
 
@@ -342,7 +342,7 @@ class MusicQueue {
             if (lang !== currentLang) return false;
           }
 
-          if (similarity(title, normalize(this.current.title)) > 0.6) {
+          if (similarity(title, normalize(this.current.title)) > 0.5) {
             return false;
           }
 
@@ -357,8 +357,33 @@ class MusicQueue {
             title.includes('playlist') ||
             title.includes('compilation') ||
             title.includes('1 hour') ||
-            title.includes('live')
+            title.includes('live') ||
+            title.includes('lyrics') ||
+            title.includes('letra') ||
+            title.includes('mashup') ||
+            title.includes('cover') ||
+            title.includes('edit') ||
+            title.includes('loop') ||
+            title.includes('transition') ||
+            title.includes('muffled') ||
+            title.includes('perfect') ||
+            title.includes('ending') ||
+            title.includes('best part') ||
+            title.includes('blind') ||
+            title.includes('audition') ||
+            title.includes('voice') ||
+            title.includes('kids') ||
+            title.includes('easy lyrics') ||
+            title.includes('english translation') ||
+            title.includes('with audio')
           ) return false;
+
+          // avoid same song variants
+          const currentNorm = normalize(this.current.title);
+          const candidateNorm = title;
+          if (currentNorm.includes(candidateNorm) || candidateNorm.includes(currentNorm)) {
+            return false;
+          }
 
           if ((t.info.length || 0) > 8 * 60 * 1000) return false;
 
@@ -387,6 +412,10 @@ class MusicQueue {
           if (this.clusterLock.artist === author) {
             score -= 40;
           }
+
+          // penalize high similarity (variants)
+          const sim = similarity(title, normalize(this.current.title));
+          if (sim > 0.3) score -= sim * 200; // heavy penalty for similar titles
 
           return { t, score, fp, lang };
         })
