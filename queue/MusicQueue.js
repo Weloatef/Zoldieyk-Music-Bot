@@ -232,10 +232,6 @@ class MusicQueue {
         `songs like ${clean}`,
         `music similar to ${clean}`,
         `songs similar to ${clean}`,
-
-        // Broader discovery
-        `best pop songs`,
-        `best chill songs`,
         `recommended songs like ${clean}`,
       ];
 
