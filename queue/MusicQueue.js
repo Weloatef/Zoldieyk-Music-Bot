@@ -246,10 +246,14 @@ class MusicQueue {
       // Avoid repeats and same-title variants
       const historyUris = new Set(this.history.map(t => t.uri));
 
-      const currentWords = clean
-        .toLowerCase()
-        .split(/\s+/)
-        .filter(Boolean);
+      const normalize = str =>
+        str
+          .toLowerCase()
+          .replace(/[^\w\s]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+      const currentNormalized = normalize(clean);
 
       const pick = result.data.find(t => {
         const title = t.info.title.toLowerCase();
@@ -272,11 +276,13 @@ class MusicQueue {
         }
 
         // Skip titles too similar to current song
-        const similarity = currentWords.filter(word =>
-          title.includes(word)
-        ).length;
+        const normalizedTitle = normalize(title);
 
-        if (similarity >= Math.max(3, currentWords.length * 0.6)) {
+        // Reject if title contains original song name
+        if (
+          normalizedTitle.includes(currentNormalized) ||
+          currentNormalized.includes(normalizedTitle)
+        ) {
           return false;
         }
 
