@@ -265,6 +265,9 @@ class MusicQueue {
       const pick = result.data.find(t => {
         const title = t.info.title.toLowerCase();
 
+        const durationMs = t.info.length || 0;
+        
+
         // Skip same URI
         if (t.info.uri === this.current.uri) return false;
 
