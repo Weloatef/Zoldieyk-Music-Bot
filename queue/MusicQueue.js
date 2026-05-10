@@ -204,7 +204,7 @@ class MusicQueue {
       const node = this.client.shoukaku.getIdealNode();
       if (!node) return null;
 
-      // Clean current title heavily
+      // ---------- CLEAN TITLE ----------
       const clean = this.current.title
         .replace(/\(.*?\)|\[.*?\]/g, '')
         .replace(/ft\..*|feat\..*/gi, '')
@@ -213,7 +213,7 @@ class MusicQueue {
         .replace(/lyrics?.*/gi, '')
         .trim();
 
-      // Extract likely artist
+      // ---------- ARTIST EXTRACTION ----------
       let artist = '';
 
       if (clean.includes(' - ')) {
@@ -222,21 +222,17 @@ class MusicQueue {
         artist = clean.split(' ').slice(0, 2).join(' ');
       }
 
-      // Rotate autoplay discovery strategies
-      const queries = [
-        // Same artist sometimes
-        `${artist} official audio`,
-        `${artist} music`,
-
-        // Similar vibe
-        `songs like ${clean}`,
-        `music similar to ${clean}`,
-        `songs similar to ${clean}`,
-        `recommended songs like ${clean}`,
+      // ---------- QUERY STRATEGY (BALANCED) ----------
+      const strategies = [
+        { q: `${artist} official audio`, w: 15 },
+        { q: `songs like ${clean}`, w: 35 },
+        { q: `similar music to ${clean}`, w: 25 },
+        { q: `underrated songs like ${clean}`, w: 15 },
+        { q: `popular music mix 2026`, w: 10 },
       ];
 
-      // Rotate based on history count
-      const query = queries[Math.floor(Math.random() * queries.length)];
+      const pool = strategies.flatMap(s => Array(s.w).fill(s.q));
+      const query = pool[Math.floor(Math.random() * pool.length)];
 
       console.log(`[Autoplay] Searching: ${query}`);
 
@@ -246,10 +242,13 @@ class MusicQueue {
         return null;
       }
 
-      // Avoid repeats and same-title variants
-      const historyIds = new Set(this.history.map(t => t.identifier || t.uri));
+      // ---------- HISTORY ----------
+      const historyIds = new Set(
+        this.history.map(t => t.identifier || t.uri)
+      );
 
-      const normalize = str =>
+      // ---------- NORMALIZER ----------
+      const normalize = (str) =>
         str
           .toLowerCase()
           .replace(/[^\w\s]/g, '')
@@ -257,58 +256,84 @@ class MusicQueue {
           .trim();
 
       const currentNormalized = normalize(clean);
-      
+      const cleanCurrent = currentNormalized;
 
-      const pick = result.data.find(t => {
-        const title = t.info.title.toLowerCase();
-        const normalizedTitle = normalize(title);
-        const durationMs = t.info.length || 0;
-        
+      // ---------- ARTIST MEMORY ----------
+      this.artistCount = this.artistCount || new Map();
 
-        // Skip same URI
-        if (t.info.uri === this.current.uri) return false;
+      const similarity = (a, b) => {
+        const setA = new Set(a.split(' '));
+        const setB = new Set(b.split(' '));
+        const intersection = [...setA].filter(x => setB.has(x));
+        return intersection.length / Math.max(setA.size, setB.size);
+      };
 
-        // Skip already played
-        if (historyIds.has(t.info.identifier || t.info.uri)) return false;
+      // ---------- SCORE CANDIDATES ----------
+      const scored = result.data
+        .filter(t => {
+          const title = normalize(t.info.title);
 
-        // Skip titles too similar to current song
-        const similarity = (a, b) => {
-          const setA = new Set(a.split(' '));
-          const setB = new Set(b.split(' '));
-          const intersection = [...setA].filter(x => setB.has(x));
-          return intersection.length / Math.max(setA.size, setB.size);
-        };
+          if (t.info.uri === this.current.uri) return false;
 
-        // Reject if title contains original song name
-        if (similarity(normalizedTitle, currentNormalized) > 0.6) {
-          return false;
-        }
-        // Skip remix/slowed/etc
-        if (
-          title.includes('slowed') ||
-          title.includes('reverb') ||
-          title.includes('nightcore') ||
-          title.includes('sped up') ||
-          title.includes('remix') ||
-          title.includes('mix') ||
-          title.includes('playlist') ||
-          title.includes('compilation') ||
-          title.includes('greatest hits') ||
-          title.includes('full album') ||
-          title.includes('1 hour') ||
-          title.includes('live stream')
-        ) {
-          return false;
-        }
-        
-        if (durationMs > 8 * 60 * 1000) {
-          return false;
-        }
+          if (historyIds.has(t.info.identifier || t.info.uri)) return false;
 
-        return true;
-      });
+          if (similarity(title, currentNormalized) > 0.6) return false;
+
+          if (
+            title.includes('slowed') ||
+            title.includes('reverb') ||
+            title.includes('nightcore') ||
+            title.includes('sped up') ||
+            title.includes('remix') ||
+            title.includes('mix') ||
+            title.includes('playlist') ||
+            title.includes('compilation') ||
+            title.includes('greatest hits') ||
+            title.includes('full album') ||
+            title.includes('1 hour') ||
+            title.includes('live stream')
+          ) return false;
+
+          if ((t.info.length || 0) > 8 * 60 * 1000) return false;
+
+          return true;
+        })
+        .map(t => {
+          const title = normalize(t.info.title);
+          const author = (t.info.author || 'unknown').toLowerCase();
+
+          const artistCount = this.artistCount.get(author) || 0;
+
+          let score = 100;
+
+          // same artist boost (controlled)
+          if (author.includes(artist.toLowerCase())) {
+            score += 30;
+          } else {
+            score += 10;
+          }
+
+          // penalize overused artists
+          score -= artistCount * 20;
+
+          // prefer mid songs
+          const len = (t.info.length || 0) / 1000;
+          if (len > 150 && len < 360) score += 10;
+
+          return { t, score };
+        })
+        .sort((a, b) => b.score - a.score);
+
+      const pick = scored[0]?.t;
 
       if (!pick) return null;
+
+      // ---------- UPDATE ARTIST MEMORY ----------
+      const pickedArtist = (pick.info.author || 'unknown').toLowerCase();
+      this.artistCount.set(
+        pickedArtist,
+        (this.artistCount.get(pickedArtist) || 0) + 1
+      );
 
       return {
         encoded: pick.encoded,
