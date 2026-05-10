@@ -213,6 +213,16 @@ class MusicQueue {
         .replace(/lyrics?.*/gi, '')
         .trim();
 
+      // ---------- LANGUAGE DETECTION ----------
+      const detectLanguage = (text) => {
+        if (/[\u0600-\u06FF]/.test(text)) return 'ar'; // Arabic
+        if (/[ñáéíóúü]/i.test(text)) return 'es';       // Spanish
+        if (/[à-ÿ]/i.test(text)) return 'fr';          // French
+        return 'en';                                   // English default
+      };
+
+      const currentLang = detectLanguage(this.current.title);
+
       // ---------- ARTIST ----------
       let artist = '';
       if (clean.includes(' - ')) {
@@ -229,6 +239,7 @@ class MusicQueue {
           .replace(/\s+/g, ' ')
           .trim();
 
+      // ---------- FINGERPRINT (song-family detection) ----------
       const fingerprint = (str) =>
         normalize(str)
           .replace(/\b(remix|official|video|audio|lyrics|version|edit|live|ft|feat|cover)\b/g, '')
@@ -240,43 +251,50 @@ class MusicQueue {
       this.historyFp = this.historyFp || new Set();
       this.artistCount = this.artistCount || new Map();
 
-      // ---------- CLUSTER CONTROL ----------
+      // ---------- ESCAPE CONTROL ----------
+      this.autoplayStep = (this.autoplayStep || 0) + 1;
+      const forceEscape = this.autoplayStep % 6 === 0;
+
       this.clusterLock = this.clusterLock || { artist: null, count: 0 };
 
       const authorNow = (this.current.author || artist || '').toLowerCase();
 
-      // reset cluster if artist changes
       if (this.clusterLock.artist !== authorNow) {
         this.clusterLock.artist = authorNow;
         this.clusterLock.count = 0;
       }
 
-      // force escape after repetition
-      const forceEscape = this.clusterLock.count >= 3;
-
-      this.autoplayStep = (this.autoplayStep || 0) + 1;
-      const periodicEscape = this.autoplayStep % 5 === 0;
-
-      // ---------- VIBE-BASED SEARCH (IMPORTANT FIX) ----------
+      // ---------- QUERY SYSTEM (LANGUAGE AWARE) ----------
       let query;
 
-      if (forceEscape || periodicEscape) {
+      if (forceEscape || this.clusterLock.count > 3) {
+        query = `global trending music 2026`;
+      } else if (currentLang === 'ar') {
         query = [
-          'trending global music 2026',
-          'top hit songs worldwide',
-          'popular music mix 2026',
-          'viral songs playlist',
-          'best songs this year'
-        ][Math.floor(Math.random() * 5)];
+          `Arabic pop songs`,
+          `Egyptian music hits`,
+          `similar Arabic songs`,
+          `modern Arabic pop playlist`
+        ][Math.floor(Math.random() * 4)];
+      } else if (currentLang === 'es') {
+        query = [
+          `reggaeton hits`,
+          `latin pop songs`,
+          `Bad Bunny style songs`,
+          `spanish pop playlist`
+        ][Math.floor(Math.random() * 4)];
+      } else if (currentLang === 'fr') {
+        query = [
+          `french pop songs`,
+          `top french hits`,
+          `francophone music playlist`
+        ][Math.floor(Math.random() * 3)];
       } else {
         query = [
           `songs like this`,
           `similar vibe music`,
-          `recommended songs`,
-          `music mix similar style`,
-          `discover new songs`,
-          `trending pop songs`
-        ][Math.floor(Math.random() * 6)];
+          `discover new songs`
+        ][Math.floor(Math.random() * 3)];
       }
 
       console.log(`[Autoplay] Searching: ${query}`);
@@ -298,28 +316,32 @@ class MusicQueue {
         return intersection.length / Math.max(setA.size, setB.size);
       };
 
-      // ---------- SCORING SYSTEM ----------
+      // ---------- SCORING ----------
       const scored = result.data
         .filter(t => {
           const title = normalize(t.info.title);
           const fp = fingerprint(t.info.title);
-          const author = (t.info.author || '').toLowerCase();
+          const lang = detectLanguage(t.info.title);
 
-          // hard duplicate block
           if (t.info.uri === this.current.uri) return false;
+
           if (historyIds.has(t.info.identifier || t.info.uri)) return false;
 
-          // prevent same song family loop (THIS FIXES DESPACITO LOOP)
+          // prevent same song family loop
           if (this.historyFp.has(fp)) return false;
           if (fp === currentFp) return false;
           if (fp.includes(currentFp) || currentFp.includes(fp)) return false;
 
-          // similarity filter
+          // keep language consistency
+          if (!forceEscape) {
+            if (lang !== currentLang) return false;
+          }
+
           if (similarity(title, normalize(this.current.title)) > 0.6) {
             return false;
           }
 
-          // remove bad variants
+          // remove junk variants
           if (
             title.includes('remix') ||
             title.includes('slowed') ||
@@ -340,33 +362,28 @@ class MusicQueue {
         .map(t => {
           const title = normalize(t.info.title);
           const fp = fingerprint(t.info.title);
+          const lang = detectLanguage(t.info.title);
           const author = (t.info.author || 'unknown').toLowerCase();
 
           const artistCount = this.artistCount.get(author) || 0;
 
           let score = 100;
 
-          // same artist allowed but controlled
-          if (author.includes(artist.toLowerCase())) {
-            score += 25;
-          } else {
-            score += 15;
-          }
+          // same language boost
+          if (lang === currentLang) score += 40;
+
+          // same artist moderate boost
+          if (author.includes(artist.toLowerCase())) score += 20;
 
           // penalize repetition
           score -= artistCount * 25;
 
-          // penalize same cluster reuse
+          // penalize cluster repetition
           if (this.clusterLock.artist === author) {
             score -= 40;
           }
 
-          // diversity bonus
-          if (!author.includes(artist.toLowerCase())) {
-            score += 10;
-          }
-
-          return { t, score, fp };
+          return { t, score, fp, lang };
         })
         .sort((a, b) => b.score - a.score);
 
