@@ -310,7 +310,7 @@ class MusicQueue {
       if (!this.current) {
         this.client.user.setActivity('🎵 Type a song name!', { type: ActivityType.Listening });
       } else {
-        this.client.user.setActivity(this.current.title + '🎵🕺', { type: ActivityType.Listening });
+        this.client.user.setActivity('🎵🕺' + this.current.title, { type: ActivityType.Listening });
       }
     } catch (_) {}
   }
