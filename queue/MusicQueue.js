@@ -385,6 +385,13 @@ class MusicQueue {
             return false;
           }
 
+          // avoid exact same song title (different artists/versions)
+          const currentSongTitle = normalize(songTitle);
+          const candidateSongTitle = normalize(splitTrack(t.info.title).title);
+          if (currentSongTitle === candidateSongTitle) {
+            return false;
+          }
+
           if ((t.info.length || 0) > 8 * 60 * 1000) return false;
 
           return true;
