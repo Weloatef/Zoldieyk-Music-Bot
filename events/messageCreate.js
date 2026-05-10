@@ -2,15 +2,6 @@
 const { Events, EmbedBuilder } = require('discord.js');
 const MusicQueue               = require('../queue/MusicQueue');
 
-// Get the best connected Lavalink node in Shoukaku v4
-// (getIdealNode does NOT exist in v4 — iterate nodes map instead)
-function getNode(shoukaku) {
-  return [...shoukaku.nodes.values()]
-    .filter(n => n.state === 2) // 2 = CONNECTED
-    .sort((a, b) => a.penalties - b.penalties)
-    .shift() || null;
-}
-
 module.exports = {
   name: Events.MessageCreate,
 
@@ -29,13 +20,13 @@ module.exports = {
 
     const searching = await message.reply(`🔍 Searching for **${query}**...`);
 
-    // ── Get a live Lavalink node ──────────────────────────────────────────────
-    const node = getNode(client.shoukaku);
+    // ── Search via Lavalink REST ───────────────────────────────────────────────
+    // Use getIdealNode() — available in Shoukaku 4.3.0+
+    const node = client.shoukaku.getIdealNode();
     if (!node) {
-      return searching.edit('❌ No Lavalink nodes available right now. Try again shortly.');
+      return searching.edit('❌ No Lavalink nodes available. Try again shortly.');
     }
 
-    // ── Search ────────────────────────────────────────────────────────────────
     const isUrl       = /^https?:\/\//.test(query);
     const searchQuery = isUrl ? query : `ytsearch:${query}`;
     let result;
@@ -50,7 +41,6 @@ module.exports = {
       return searching.edit(`❌ No results found for **${query}**.`);
     }
 
-    // ── Pick tracks ───────────────────────────────────────────────────────────
     let tracksToAdd = [];
     if      (result.loadType === 'track')    tracksToAdd = [result.data];
     else if (result.loadType === 'search')   tracksToAdd = result.data.length ? [result.data[0]] : [];
@@ -73,15 +63,14 @@ module.exports = {
     let queue = client.queues.get(message.guildId);
 
     if (!queue) {
-      // Clean any stale Shoukaku state for this guild before joining
-      const stale = client.shoukaku.connections.has(message.guildId)
-                 || client.shoukaku.players.has(message.guildId);
-      if (stale) {
-        console.log('[VC] Stale state found — cleaning before rejoin...');
+      // Clean any stale Shoukaku state so joinVoiceChannel doesn't throw
+      if (client.shoukaku.connections.has(message.guildId) ||
+          client.shoukaku.players.has(message.guildId)) {
+        console.log('[VC] Cleaning stale connection before joining...');
         try { await client.shoukaku.leaveVoiceChannel(message.guildId); } catch (_) {}
         client.shoukaku.connections.delete(message.guildId);
         client.shoukaku.players.delete(message.guildId);
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise(r => setTimeout(r, 800));
       }
 
       let player;
@@ -89,20 +78,23 @@ module.exports = {
         player = await client.shoukaku.joinVoiceChannel({
           guildId  : message.guild.id,
           channelId: voiceChannel.id,
-          shardId  : 0,
+          shardId  : message.guild.shardId ?? 0,   // use actual shardId, not hardcoded 0
+          deaf     : true,
         });
       } catch (err) {
         console.error('[VC Join Error]', err.message);
+        // Full cleanup on failure so next attempt works
+        try { await client.shoukaku.leaveVoiceChannel(message.guildId); } catch (_) {}
         client.shoukaku.connections.delete(message.guildId);
         client.shoukaku.players.delete(message.guildId);
-        return searching.edit('❌ Could not join VC — please try again.');
+        return searching.edit('❌ Could not join VC — please try again in a few seconds.');
       }
 
       queue = new MusicQueue(message.guildId, message.channel, player, client);
       client.queues.set(message.guildId, queue);
     }
 
-    // ── Add tracks ────────────────────────────────────────────────────────────
+    // ── Queue tracks ──────────────────────────────────────────────────────────
     const firstTrack = makeTrack(tracksToAdd[0]);
 
     if (result.loadType === 'playlist') {

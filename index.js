@@ -1,4 +1,3 @@
-// index.js — Discord Music Bot (Lavalink/Shoukaku v4 edition)
 require('dotenv').config();
 
 // ── Keepalive HTTP server ────────────────────────────────────────────────────
@@ -19,7 +18,6 @@ const { Shoukaku, Connectors }                  = require('shoukaku');
 const fs   = require('fs');
 const path = require('path');
 
-// ── Discord client ───────────────────────────────────────────────────────────
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -29,7 +27,6 @@ const client = new Client({
   ],
 });
 
-// ── Lavalink nodes ───────────────────────────────────────────────────────────
 const LavalinkNodes = [{
   name  : 'Main',
   url   : `${process.env.LAVALINK_HOST}:${process.env.LAVALINK_PORT}`,
@@ -37,16 +34,15 @@ const LavalinkNodes = [{
   secure: process.env.LAVALINK_SECURE === 'true',
 }];
 
-// ── Shoukaku (Lavalink client) ───────────────────────────────────────────────
 const shoukaku = new Shoukaku(new Connectors.DiscordJS(client), LavalinkNodes, {
-  moveOnDisconnect: true,
-  resumable       : false,
-  resumableTimeout: 30,
-  reconnectTries  : 3,
-  restTimeout     : 10000,
+  moveOnDisconnect    : true,
+  resumable           : false,
+  resumableTimeout    : 30,
+  reconnectTries      : 3,
+  restTimeout         : 10000,
+  voiceConnectionTimeout: 30,   // give Discord more time to send VOICE_STATE_UPDATE
 });
 
-// Shoukaku v4 emits 'ready' on the node (not client), suppress the discord.js rename warning
 shoukaku.on('ready',      (name)        => console.log(`[Lavalink] Node "${name}" connected ✅`));
 shoukaku.on('error',      (name, error) => console.error(`[Lavalink] Node "${name}" error:`, error.message));
 shoukaku.on('close',      (name, code)  => console.warn(`[Lavalink] Node "${name}" closed (${code})`));
@@ -55,7 +51,7 @@ shoukaku.on('disconnect', (name)        => console.warn(`[Lavalink] Node "${name
 client.shoukaku = shoukaku;
 client.queues   = new Map();
 
-// ── Load slash commands ──────────────────────────────────────────────────────
+// ── Load commands ────────────────────────────────────────────────────────────
 client.commands = new Collection();
 const cmdDir    = path.join(__dirname, 'commands');
 fs.readdirSync(cmdDir).filter(f => f.endsWith('.js')).forEach(file => {
@@ -64,19 +60,16 @@ fs.readdirSync(cmdDir).filter(f => f.endsWith('.js')).forEach(file => {
   console.log(`  📌 Command loaded: /${cmd.data.name}`);
 });
 
-// ── Load events ──────────────────────────────────────────────────────────────
-// Only load each event name ONCE — skip duplicates
+// ── Load events — deduplicated ────────────────────────────────────────────────
 const evtDir      = path.join(__dirname, 'events');
 const loadedNames = new Set();
-
 fs.readdirSync(evtDir).filter(f => f.endsWith('.js')).forEach(file => {
   const event = require(path.join(evtDir, file));
   if (loadedNames.has(event.name)) {
-    console.warn(`  ⚠️  Skipping duplicate event: ${event.name} (${file})`);
+    console.warn(`  ⚠️  Skipping duplicate event file: ${file}`);
     return;
   }
   loadedNames.add(event.name);
-
   if (event.once) {
     client.once(event.name, (...args) => event.execute(...args, client));
   } else {
