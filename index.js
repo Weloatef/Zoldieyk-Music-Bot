@@ -60,22 +60,16 @@ fs.readdirSync(cmdDir).filter(f => f.endsWith('.js')).forEach(file => {
   console.log(`  📌 Command loaded: /${cmd.data.name}`);
 });
 
-// ── Load events — deduplicated ────────────────────────────────────────────────
-const evtDir      = path.join(__dirname, 'events');
-const loadedNames = new Set();
+// ── Load events (multiple files can share the same event name, e.g. InteractionCreate)
+const evtDir = path.join(__dirname, 'events');
 fs.readdirSync(evtDir).filter(f => f.endsWith('.js')).forEach(file => {
   const event = require(path.join(evtDir, file));
-  if (loadedNames.has(event.name)) {
-    console.warn(`  ⚠️  Skipping duplicate event file: ${file}`);
-    return;
-  }
-  loadedNames.add(event.name);
   if (event.once) {
     client.once(event.name, (...args) => event.execute(...args, client));
   } else {
     client.on(event.name,   (...args) => event.execute(...args, client));
   }
-  console.log(`  📡 Event loaded: ${event.name}`);
+  console.log(`  📡 Event loaded: ${file}`);
 });
 
 process.on('unhandledRejection', err => console.error('[Unhandled Rejection]', err));
