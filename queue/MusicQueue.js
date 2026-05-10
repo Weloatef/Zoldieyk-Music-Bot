@@ -261,11 +261,11 @@ class MusicQueue {
           .trim();
 
       const currentNormalized = normalize(clean);
-      const normalizedTitle = normalize(title);
+      
 
       const pick = result.data.find(t => {
         const title = t.info.title.toLowerCase();
-
+        const normalizedTitle = normalize(title);
         const durationMs = t.info.length || 0;
         
 
@@ -289,23 +289,18 @@ class MusicQueue {
         }
         // Skip remix/slowed/etc
         if (
-          title.includes('slowed') ||
-          title.includes('reverb') ||
-          title.includes('nightcore') ||
-          title.includes('sped up') ||
-          title.includes('remix')
-        ) {
-          return false;
-        }
-
-         if (
-          title.includes('mix') ||
-          title.includes('playlist') ||
-          title.includes('compilation') ||
-          title.includes('greatest hits') ||
-          title.includes('full album') ||
-          title.includes('1 hour') ||
-          title.includes('live stream')
+          titleNorm.includes('slowed') ||
+          titleNorm.includes('reverb') ||
+          titleNorm.includes('nightcore') ||
+          titleNorm.includes('sped up') ||
+          titleNorm.includes('remix') ||
+          titleNorm.includes('mix') ||
+          titleNorm.includes('playlist') ||
+          titleNorm.includes('compilation') ||
+          titleNorm.includes('greatest hits') ||
+          titleNorm.includes('full album') ||
+          titleNorm.includes('1 hour') ||
+          titleNorm.includes('live stream')
         ) {
           return false;
         }
