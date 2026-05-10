@@ -251,7 +251,7 @@ class MusicQueue {
       }
 
       // Avoid repeats and same-title variants
-      const historyUris = new Set(this.history.map(t => t.uri));
+      const historyIds = new Set(this.history.map(t => t.identifier || t.uri));
 
       const normalize = str =>
         str
@@ -261,6 +261,7 @@ class MusicQueue {
           .trim();
 
       const currentNormalized = normalize(clean);
+      const normalizedTitle = normalize(title);
 
       const pick = result.data.find(t => {
         const title = t.info.title.toLowerCase();
@@ -272,19 +273,20 @@ class MusicQueue {
         if (t.info.uri === this.current.uri) return false;
 
         // Skip already played
-        if (historyUris.has(t.info.uri)) return false;
+        if (historyIds.has(t.info.identifier || t.info.uri)) return false;
 
         // Skip titles too similar to current song
-        const normalizedTitle = normalize(title);
+        const similarity = (a, b) => {
+          const setA = new Set(a.split(' '));
+          const setB = new Set(b.split(' '));
+          const intersection = [...setA].filter(x => setB.has(x));
+          return intersection.length / Math.max(setA.size, setB.size);
+        };
 
         // Reject if title contains original song name
-        if (
-          normalizedTitle.includes(currentNormalized) ||
-          currentNormalized.includes(normalizedTitle)
-        ) {
+        if (similarity(normalizedTitle, currentNormalized) > 0.6) {
           return false;
         }
-
         // Skip remix/slowed/etc
         if (
           title.includes('slowed') ||
