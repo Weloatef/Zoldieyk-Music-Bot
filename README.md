@@ -193,10 +193,10 @@ npm start
 | `CLIENT_ID` | Your application ID |
 | `GUILD_ID` | Your server ID |
 | `MUSIC_CHANNEL_ID` | The channel ID for music requests |
-| `LAVALINK_HOST` | `lavalinkv4.serenetia.com` |
-| `LAVALINK_PORT` | `443` |
-| `LAVALINK_PASSWORD` | `https://seretia.link/discord` |
-| `LAVALINK_SECURE` | `true` |
+| `LAVALINK_HOST` | Server Host on Lavalink |
+| `LAVALINK_PORT` | Server Port on Lavalink  |
+| `LAVALINK_PASSWORD` | Server Password on Lavalink  |
+| `LAVALINK_SECURE` | `Server Security on Lavalink  |
 
 ---
 
