@@ -92,6 +92,7 @@ const FP_WORDS = new Set([
   'muffled','ending','intro','outro','extended','remaster','remastered',
   'acoustic','unplugged','instrumental','karaoke','visualizer','clip',
   'remix','slowed','reverb','nightcore','sped','speed','2020','2021',
+  'top','hits','collection','vol',
   '2022','2023','2024','2025','2026','new','best','top','greatest',
 ]);
 
@@ -135,6 +136,11 @@ const BLOCK_PARTIAL = [
   'مدرسية','مدرسيه',                      // Arabic "school"
   'جيناك بهاية','بهاية',                 // specific junk pattern
   'street reaction','public reaction','that one song',
+  'top 10','top 20','top 30','top 40','top 50','top 100',  // compilation countdowns
+  'best of','best songs of','greatest hits of',            // compilation formats
+  'all songs','full album','full playlist','full collection',
+  '@',                                                      // social media repost handles
+  '#cadasings','#shorts',                                   // hashtag-title patterns
   'took over','whole street','vibe took',
   'tik tok','tiktok','trending tiktok',
   '16d audio','8d audio','8d musix','16d',
@@ -157,6 +163,14 @@ function isBlocked(normTitle, rawTitle) {
   if (BLOCK_PARTIAL.some(w => normTitle.includes(w))) return true;
   // Block titles that end with a pipe (junk compilation titles like "Song Lyrics |")
   if (rawTitle && rawTitle.trim().endsWith('|'))       return true;
+  // Block social media repost titles (@handle in title)
+  if (rawTitle && /@[a-zA-Z0-9_]{3,}/.test(rawTitle))   return true;
+  // Block titles that start with # (hashtag-first titles = shorts/reels)
+  if (rawTitle && /^#/.test(rawTitle.trim()))             return true;
+  // Block "Top N" countdown compilations
+  if (normTitle && /\btop\s+\d+\b/.test(normTitle))    return true;
+  // Block titles with 3+ consecutive numbers (timestamps, episode numbers in compilations)
+  if (rawTitle && /\b\d{3,}\b/.test(rawTitle) && /\bsongs\b|\bhits\b|\bplaylist\b/i.test(rawTitle)) return true;
   // Block if title has multiple pipes (compilations/multi-song videos)
   if (rawTitle && (rawTitle.match(/\|/g) || []).length >= 2) return true;
   return false;
@@ -445,10 +459,10 @@ class MusicQueue {
       const lang = detectLanguage(langText);
 
       this._autoStep++;
-      const forceEscape  = this._autoStep % 5 === 0;
+      const forceEscape  = this._autoStep % 7 === 0;
       const artistKey    = artist.toLowerCase().trim();
       const artistPlays  = artistKey ? (this._artistCount.get(artistKey) || 0) : 0;
-      const artistEscape = artistPlays >= 2;
+      const artistEscape = artistPlays >= 4;
 
       console.log(`[Autoplay] Step:${this._autoStep} Lang:${lang} Artist:"${artist}" Song:"${songTitle}" Escape:${forceEscape} ArtistEsc:${artistEscape} Anchor:"${anchor.title}"`);
 
@@ -547,7 +561,10 @@ class MusicQueue {
             // Penalty for title similarity to current
             score -= similarity(titleNorm, currentNorm) * 180;
             // Prefer shorter, clean titles (real songs vs reaction vids)
-            if (info.title.length < 70) score += 8;
+            if (info.title.length < 50) score += 20;
+            else if (info.title.length < 70) score += 8;
+            // Penalize titles with numbers at start (Top N compilations)
+            if (/^\d+\./.test(info.title)) score -= 30;
             // Small boost for official channels
             if (/official|vevo/i.test(info.author || '')) score += 10;
 
