@@ -92,7 +92,6 @@ const FP_WORDS = new Set([
   'muffled','ending','intro','outro','extended','remaster','remastered',
   'acoustic','unplugged','instrumental','karaoke','visualizer','clip',
   'remix','slowed','reverb','nightcore','sped','speed','2020','2021',
-  'top','hits','collection','vol',
   '2022','2023','2024','2025','2026','new','best','top','greatest',
 ]);
 
@@ -136,11 +135,6 @@ const BLOCK_PARTIAL = [
   'مدرسية','مدرسيه',                      // Arabic "school"
   'جيناك بهاية','بهاية',                 // specific junk pattern
   'street reaction','public reaction','that one song',
-  'top 10','top 20','top 30','top 40','top 50','top 100',  // compilation countdowns
-  'best of','best songs of','greatest hits of',            // compilation formats
-  'all songs','full album','full playlist','full collection',
-  '@',                                                      // social media repost handles
-  '#cadasings','#shorts',                                   // hashtag-title patterns
   'took over','whole street','vibe took',
   'tik tok','tiktok','trending tiktok',
   '16d audio','8d audio','8d musix','16d',
@@ -163,14 +157,6 @@ function isBlocked(normTitle, rawTitle) {
   if (BLOCK_PARTIAL.some(w => normTitle.includes(w))) return true;
   // Block titles that end with a pipe (junk compilation titles like "Song Lyrics |")
   if (rawTitle && rawTitle.trim().endsWith('|'))       return true;
-  // Block social media repost titles (@handle in title)
-  if (rawTitle && /@[a-zA-Z0-9_]{3,}/.test(rawTitle))   return true;
-  // Block titles that start with # (hashtag-first titles = shorts/reels)
-  if (rawTitle && /^#/.test(rawTitle.trim()))             return true;
-  // Block "Top N" countdown compilations
-  if (normTitle && /\btop\s+\d+\b/.test(normTitle))    return true;
-  // Block titles with 3+ consecutive numbers (timestamps, episode numbers in compilations)
-  if (rawTitle && /\b\d{3,}\b/.test(rawTitle) && /\bsongs\b|\bhits\b|\bplaylist\b/i.test(rawTitle)) return true;
   // Block if title has multiple pipes (compilations/multi-song videos)
   if (rawTitle && (rawTitle.match(/\|/g) || []).length >= 2) return true;
   return false;
@@ -179,25 +165,73 @@ function isBlocked(normTitle, rawTitle) {
 // ─────────────────────────────────────────────────────────────────────────────
 //  Query builder  — returns ordered list to try
 // ─────────────────────────────────────────────────────────────────────────────
-function buildQueries(artist, songTitle, lang, escape, artistEscape) {
-  // For escape rounds: something totally different in the same language
-  if (escape) {
-    const escapeQueries = {
-      ar: ['اغاني عربية رومانسية', 'عمرو دياب اغاني', 'محمد منير اغاني', 'نجوى كرم اغاني'],
-      he: ['שירים ישראלים פופולריים', 'מוזיקה ישראלית'],
-      ru: ['российские хиты', 'лучшие русские песни'],
-      ja: ['日本語の人気曲', '邦楽ヒット'],
-      ko: ['한국 인기 가요', 'K-POP 인기곡'],
-      es: ['pop en español', 'reggaeton latino'],
-      fr: ['pop française', 'chanson française populaire'],
-      de: ['deutsche Musik Pop', 'deutsche Hits'],
-      it: ['musica italiana pop', 'canzoni italiane'],
-      en: [artist ? `${artist} best songs` : 'popular songs', 'top hits'],
-    };
-    return escapeQueries[lang] || escapeQueries.en;
-  }
+// ── Similar artists map ──────────────────────────────────────────────────────
+const SIMILAR_ARTISTS = {
+  'sherine':           ['Amr Diab','Tamer Hosny','Hamaki','Nancy Ajram','Elissa','Angham'],
+  'amr diab':          ['Sherine','Tamer Hosny','Hamaki','Mohamed Mounir','Wael Kfoury'],
+  'tamer hosny':       ['Amr Diab','Sherine','Hamaki','Mohamed Mounir','Ramy Sabry'],
+  'hamaki':            ['Amr Diab','Tamer Hosny','Sherine','Wael Kfoury','Ramy Sabry'],
+  'nancy ajram':       ['Elissa','Haifa Wehbe','Sherine','Nawal Al Zoghbi','Carole Samaha'],
+  'elissa':            ['Nancy Ajram','Haifa Wehbe','Nawal Al Zoghbi','Sherine','Wael Kfoury'],
+  'wael kfoury':       ['Amr Diab','Nassif Zeytoun','Majid Al Mohandis','Rashed Al Majed'],
+  'majid al mohandis': ['Wael Kfoury','Nassif Zeytoun','Rashed Al Majed','Mohammed Abdo'],
+  'fairouz':           ['Marcel Khalife','Majida El Roumi','Sabah','Warda Al Jazairia'],
+  'ramy sabry':        ['Tamer Hosny','Hamaki','Amr Diab','Mohamed Mounir'],
+  'angham':            ['Sherine','Elissa','Nancy Ajram','Nawal Al Zoghbi'],
+  'indila':            ['Stromae','Zaz','Coeur de Pirate','Nolwenn Leroy','Carla Bruni','Alizee'],
+  'stromae':           ['Indila','Maitre Gims','Black M','Ninho','Youssoupha'],
+  'zaz':               ['Indila','Carla Bruni','Nolwenn Leroy','Coeur de Pirate','Yael Naim'],
+  'maitre gims':       ['Stromae','Aya Nakamura','Ninho','Soprano','Dadju'],
+  'aya nakamura':      ['Maitre Gims','Ninho','Dadju','Tayc','Stromae'],
+  'nolwenn leroy':     ['Zaz','Indila','Carla Bruni','Coeur de Pirate'],
+  'luis fonsi':        ['Maluma','J Balvin','Bad Bunny','Ozuna','Daddy Yankee','Ricky Martin'],
+  'maluma':            ['Luis Fonsi','J Balvin','Bad Bunny','Ozuna','Nicky Jam'],
+  'j balvin':          ['Maluma','Bad Bunny','Ozuna','Luis Fonsi','Daddy Yankee'],
+  'bad bunny':         ['J Balvin','Maluma','Ozuna','Daddy Yankee','Anuel AA'],
+  'daddy yankee':      ['Luis Fonsi','Bad Bunny','J Balvin','Nicky Jam','Ozuna'],
+  'shakira':           ['Jennifer Lopez','Ricky Martin','Luis Fonsi','Maluma','Carlos Vives'],
+  'ozuna':             ['Bad Bunny','J Balvin','Maluma','Daddy Yankee','Anuel AA'],
+  'harry styles':      ['Shawn Mendes','Niall Horan','Zayn','Sam Smith','Dua Lipa'],
+  'shawn mendes':      ['Harry Styles','Niall Horan','Justin Bieber','Camila Cabello','Charlie Puth'],
+  'taylor swift':      ['Selena Gomez','Ariana Grande','Dua Lipa','Olivia Rodrigo','Katy Perry'],
+  'ed sheeran':        ['Sam Smith','Charlie Puth','James Arthur','Lewis Capaldi','Passenger'],
+  'dua lipa':          ['Ariana Grande','Olivia Rodrigo','Harry Styles','Billie Eilish','Lizzo'],
+  'the weeknd':        ['Drake','Post Malone','Bryson Tiller','Nav','PartyNextDoor'],
+  'post malone':       ['The Weeknd','Drake','Juice WRLD','21 Savage','Lil Uzi Vert'],
+  'ariana grande':     ['Dua Lipa','Selena Gomez','Billie Eilish','Taylor Swift','Nicki Minaj'],
+  'billie eilish':     ['Olivia Rodrigo','Dua Lipa','Lorde','Halsey','Lana Del Rey'],
+  'olivia rodrigo':    ['Billie Eilish','Taylor Swift','Dua Lipa','Sabrina Carpenter'],
+  'one direction':     ['Harry Styles','Shawn Mendes','Niall Horan','Zayn','5 Seconds of Summer'],
+  'bts':               ['EXO','SEVENTEEN','Stray Kids','NCT','TXT','ENHYPEN'],
+  'blackpink':         ['TWICE','aespa','IVE','NewJeans','Red Velvet','ITZY'],
+  '_ar': ['Amr Diab','Tamer Hosny','Hamaki','Nancy Ajram','Elissa','Wael Kfoury','Sherine'],
+  '_fr': ['Indila','Stromae','Zaz','Maitre Gims','Aya Nakamura','Nolwenn Leroy'],
+  '_es': ['Luis Fonsi','Maluma','J Balvin','Bad Bunny','Shakira','Daddy Yankee'],
+  '_en': ['Harry Styles','Shawn Mendes','Ed Sheeran','Dua Lipa','The Weeknd','Post Malone'],
+  '_ko': ['BTS','BLACKPINK','TWICE','EXO','Stray Kids','ENHYPEN'],
+  '_ja': ['Kenshi Yonezu','Official HIGE DANdism','King Gnu','Aimyon','Yoasobi'],
+};
 
+function getSimilarArtists(artistKey, lang) {
+  const key = (artistKey || '').toLowerCase().trim();
+  if (SIMILAR_ARTISTS[key]) return SIMILAR_ARTISTS[key];
+  const partial = Object.keys(SIMILAR_ARTISTS).find(k =>
+    !k.startsWith('_') && key.length > 3 && (key.includes(k) || k.includes(key))
+  );
+  if (partial) return SIMILAR_ARTISTS[partial];
+  return SIMILAR_ARTISTS[`_${lang}`] || SIMILAR_ARTISTS['_en'];
+}
+
+function buildQueries(artist, songTitle, lang, escape, artistEscape) {
   const queries = [];
+
+  if (escape) {
+    // Hard escape: random similar artist from the pool
+    const pool      = getSimilarArtists(artist, lang).filter(a => a.toLowerCase() !== (artist || '').toLowerCase());
+    const hopArtist = pool[Math.floor(Math.random() * pool.length)] || pool[0];
+    if (hopArtist) queries.push(`${hopArtist} songs`);
+    return queries.filter(Boolean);
+  }
 
   if (artist && !artistEscape) {
     // PRIMARY: same artist — do NOT include song title to avoid same-song results
@@ -205,26 +239,33 @@ function buildQueries(artist, songTitle, lang, escape, artistEscape) {
     queries.push(`${artist} official songs`);
   }
 
-  if (artistEscape || !artist) {
-    // Artist escape or unknown artist — search genre/vibe, NOT song title
+  if (artistEscape) {
+    // Random hop to a similar artist — different every call, feels organic
+    const pool      = getSimilarArtists(artist, lang).filter(a => a.toLowerCase() !== (artist || '').toLowerCase());
+    const hopArtist = pool[Math.floor(Math.random() * pool.length)];
+    if (hopArtist) {
+      queries.push(`${hopArtist} songs`);
+      queries.push(`${hopArtist} official songs`);
+    }
+  }
+
+  if (!artist) {
     const genreMap = {
       ar: 'اغاني عربية رومانسية',
-      he: 'שירים ישראלים',
-      ru: 'российские хиты',
-      ja: '日本語の人気曲',
-      ko: '한국 인기 가요',
-      es: 'pop en español popular',
+      he: 'songs Israel',
+      ru: 'popular Russian songs',
+      ja: 'popular Japanese songs',
+      ko: 'popular Korean songs',
+      es: 'latin pop hits',
       fr: 'chansons françaises populaires',
       de: 'deutsche Musik Pop',
       it: 'musica italiana pop',
-      en: artist ? `${artist} similar artists songs` : 'popular music',
+      en: 'popular music hits',
     };
     queries.push(genreMap[lang] || genreMap.en);
   }
 
-  // Final fallback: artist only (no song title), or generic
   if (artist) queries.push(artist);
-
   return queries.filter(Boolean);
 }
 
@@ -459,10 +500,10 @@ class MusicQueue {
       const lang = detectLanguage(langText);
 
       this._autoStep++;
-      const forceEscape  = this._autoStep % 7 === 0;
+      const forceEscape  = this._autoStep % 5 === 0;
       const artistKey    = artist.toLowerCase().trim();
       const artistPlays  = artistKey ? (this._artistCount.get(artistKey) || 0) : 0;
-      const artistEscape = artistPlays >= 4;
+      const artistEscape = artistPlays >= 3;
 
       console.log(`[Autoplay] Step:${this._autoStep} Lang:${lang} Artist:"${artist}" Song:"${songTitle}" Escape:${forceEscape} ArtistEsc:${artistEscape} Anchor:"${anchor.title}"`);
 
@@ -528,7 +569,7 @@ class MusicQueue {
 
             // Duration 1:00 – 8:00
             const dur = info.length || 0;
-            if (dur < 60_000 || dur > 8 * 60_000) return false;
+            if (dur < 90_000 || dur > 8 * 60_000) return false;   // min 1:30
 
             // Language check (strict pass only, skipped on relaxed pass)
             if (strict) {
@@ -561,10 +602,7 @@ class MusicQueue {
             // Penalty for title similarity to current
             score -= similarity(titleNorm, currentNorm) * 180;
             // Prefer shorter, clean titles (real songs vs reaction vids)
-            if (info.title.length < 50) score += 20;
-            else if (info.title.length < 70) score += 8;
-            // Penalize titles with numbers at start (Top N compilations)
-            if (/^\d+\./.test(info.title)) score -= 30;
+            if (info.title.length < 70) score += 8;
             // Small boost for official channels
             if (/official|vevo/i.test(info.author || '')) score += 10;
 
