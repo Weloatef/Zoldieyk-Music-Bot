@@ -116,6 +116,7 @@ function similarity(a, b) {
 // ─────────────────────────────────────────────────────────────────────────────
 const BLOCK_EXACT   = ['playlist','compilation','megamix','medley','mashup'];
 const BLOCK_PARTIAL = [
+  'lyrics',          // standalone "lyrics" in title = lyrics video not real song
   'slowed','reverb','nightcore','sped up','speed up',
   'lyric video','lyrics video','letra','كلمات',
   'live concert','live performance','live session',
@@ -151,9 +152,13 @@ const BLOCK_PARTIAL = [
 
 ];
 
-function isBlocked(normTitle) {
-  if (BLOCK_EXACT.some(w => normTitle === w))        return true;
+function isBlocked(normTitle, rawTitle) {
+  if (BLOCK_EXACT.some(w => normTitle === w))         return true;
   if (BLOCK_PARTIAL.some(w => normTitle.includes(w))) return true;
+  // Block titles that end with a pipe (junk compilation titles like "Song Lyrics |")
+  if (rawTitle && rawTitle.trim().endsWith('|'))       return true;
+  // Block if title has multiple pipes (compilations/multi-song videos)
+  if (rawTitle && (rawTitle.match(/\|/g) || []).length >= 2) return true;
   return false;
 }
 
@@ -418,15 +423,21 @@ class MusicQueue {
       const anchor = this._anchorTrack || this.current;
       let { artist, songTitle } = splitTrack(anchor.title);
 
-      // Fallback 1: YouTube channel/author field (populated from Lavalink t.info.author)
-      if (!artist && anchor.author) artist = anchor.author;
-
-      // Fallback 2: user's raw search query — extract first word(s) as artist hint
-      // e.g. "Sherine Kalam Einieh" → try "Sherine" as artist
+      // Fallback 1: user's raw search query — highest priority after title parsing
+      // e.g. user typed "Sherine Kalam Einieh" → extract "Sherine" or "Sherine Kalam"
       if (!artist && anchor._rawQuery) {
         const qParts = anchor._rawQuery.trim().split(/\s+/);
-        // Use first 1-2 words if query is multi-word (likely "Artist Song")
-        artist = qParts.length >= 2 ? qParts.slice(0, 2).join(' ') : qParts[0];
+        // If 3+ words, likely "Artist Song Song" → take first word only
+        // If 2 words, likely "Artist Song" → take first word
+        // If 1 word, take it as-is
+        artist = qParts.length >= 3 ? qParts[0] : qParts.slice(0, 2).join(' ');
+      }
+
+      // Fallback 2: YouTube channel name — ONLY if it looks like a real artist
+      // Skip channels that are clearly compilation/lyrics channels
+      const JUNK_CHANNEL_PATTERNS = /lyrics|letra|translations?|official audio|music box|sounds|records|entertainment|vevo$|topic$|\bmusic\b|channel|compilation|hits|playlist|\d{4}|zaramarazz|ncs|nhạc/i;
+      if (!artist && anchor.author && !JUNK_CHANNEL_PATTERNS.test(anchor.author)) {
+        artist = anchor.author;
       }
 
       // Detect language from combined signals
@@ -496,7 +507,7 @@ class MusicQueue {
             if (similarity(titleNorm, currentNorm) > 0.55) return false;
 
             // Hard blocklist
-            if (isBlocked(titleNorm)) return false;
+            if (isBlocked(titleNorm, info.title)) return false;
 
             // No streams or live
             if (info.isStream || info.isLive) return false;
