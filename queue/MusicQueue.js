@@ -44,28 +44,30 @@ function detectLanguage(text) {
 //  cleanTitle only removes junk AFTER splitting
 // ─────────────────────────────────────────────────────────────────────────────
 function splitTrack(rawTitle) {
+  // Pre-clean: remove everything after | (pipe) — usually junk like "Lyrics | English Translation"
+  const beforePipe = rawTitle.split(/\s*\|\s*/)[0].trim();
+
   // Try "Artist - Song Title" — most common YouTube format
-  const dashMatch = rawTitle.match(/^(.+?)\s+-\s+(.+)$/);
+  const dashMatch = beforePipe.match(/^(.+?)\s+-\s+(.+)$/);
   if (dashMatch) {
     const artist    = dashMatch[1].trim();
     const songPart  = dashMatch[2].trim();
-    // Clean the song part only
-    const songTitle = stripJunk(songPart);
-    return { artist: stripJunk(artist), songTitle };
+    return { artist: stripJunk(artist), songTitle: stripJunk(songPart) };
   }
   // Try "Song by Artist"
-  const byMatch = rawTitle.match(/^(.+?)\s+by\s+(.+)$/i);
+  const byMatch = beforePipe.match(/^(.+?)\s+by\s+(.+)$/i);
   if (byMatch) {
     return { artist: stripJunk(byMatch[2]), songTitle: stripJunk(byMatch[1]) };
   }
   // No separator — whole thing is the song (no known artist)
-  return { artist: '', songTitle: stripJunk(rawTitle) };
+  return { artist: '', songTitle: stripJunk(beforePipe) };
 }
 
 // Strip junk from a single part (artist name or song title)
 function stripJunk(str) {
   return str
-    .replace(/\(.*?\)|\[.*?\]/g, '')
+    .split(/\s*\|\s*/)[0]               // drop everything after pipe
+    .replace(/\(.*?\)|\[.*?\]/g, '')   // remove parenthetical & bracketed
     .replace(/\b(official|video|audio|lyrics?|letra|hd|4k|clip|mv|ft\..*|feat\..*)\b.*/gi, '')
     .replace(/\b(slowed|reverb|nightcore|sped up|speed up)\b.*/gi, '')
     .replace(/\s+/g, ' ')
@@ -129,9 +131,24 @@ const BLOCK_PARTIAL = [
   'نسخة مدرسية','نسخه مدرسيه',            // Arabic "school version"
   'للأطفال','للاطفال','أطفال',            // Arabic "for children/kids"
   'اناشيد','أناشيد',                      // Arabic religious hymns
-  'مدرسية','مدرسيه',                      // Arabic "school"             // specific junk pattern
+  'مدرسية','مدرسيه',                      // Arabic "school"
+  'جيناك بهاية','بهاية',                 // specific junk pattern
   'street reaction','public reaction','that one song',
   'took over','whole street','vibe took',
+  'tik tok','tiktok','trending tiktok',
+  '16d audio','8d audio','8d musix','16d',
+  'ending part','ending loop','perfect loop','loop version',
+  'read description','check description',
+  'concert','jeddah concert','live concert',
+  'afro house','house remix','club remix','dj remix',
+  'cover by','covered by','cadasings',
+  'speed up version','sped version',
+  'mind version','02h.mind',
+  'حفل','حفله',                   // Arabic "concert/event"
+  'ميكس','ميكسات',               // Arabic "mix/mixes"
+  'ريمكس',                        // Arabic "remix"
+  'جلسة','جلسات',                // Arabic "session"
+
 ];
 
 function isBlocked(normTitle) {
@@ -144,19 +161,19 @@ function isBlocked(normTitle) {
 //  Query builder  — returns ordered list to try
 // ─────────────────────────────────────────────────────────────────────────────
 function buildQueries(artist, songTitle, lang, escape, artistEscape) {
-  // For escape rounds: find something totally different in the same language
+  // For escape rounds: something totally different in the same language
   if (escape) {
     const escapeQueries = {
-      ar: ['أحسن اغاني عربية 2024', 'اغاني عربية شهيرة', 'محمد منير اغاني', 'عمرو دياب اغاني'],
+      ar: ['اغاني عربية رومانسية', 'عمرو دياب اغاني', 'محمد منير اغاني', 'نجوى كرم اغاني'],
       he: ['שירים ישראלים פופולריים', 'מוזיקה ישראלית'],
-      ru: ['российские хиты 2024', 'лучшие русские песни'],
-      ja: ['日本語の人気曲 2024', '邦楽ヒット'],
-      ko: ['한국 인기 가요 2024', 'K-POP 인기곡'],
-      es: ['pop en español 2024', 'reggaeton latino popular'],
-      fr: ['pop française populaire 2024', 'chanson française'],
-      de: ['deutsche Musik 2024', 'deutsche Pop Hits'],
-      it: ['musica italiana 2024', 'pop italiano'],
-      en: [`songs like ${songTitle}`, 'popular songs 2024'],
+      ru: ['российские хиты', 'лучшие русские песни'],
+      ja: ['日本語の人気曲', '邦楽ヒット'],
+      ko: ['한국 인기 가요', 'K-POP 인기곡'],
+      es: ['pop en español', 'reggaeton latino'],
+      fr: ['pop française', 'chanson française populaire'],
+      de: ['deutsche Musik Pop', 'deutsche Hits'],
+      it: ['musica italiana pop', 'canzoni italiane'],
+      en: [artist ? `${artist} best songs` : 'popular songs', 'top hits'],
     };
     return escapeQueries[lang] || escapeQueries.en;
   }
@@ -164,28 +181,30 @@ function buildQueries(artist, songTitle, lang, escape, artistEscape) {
   const queries = [];
 
   if (artist && !artistEscape) {
-    // Primary: same artist, different songs
+    // PRIMARY: same artist — do NOT include song title to avoid same-song results
     queries.push(`${artist} songs`);
-    queries.push(`${artist} best songs`);
+    queries.push(`${artist} official songs`);
   }
 
-  // Language-specific "similar songs" query
-  const similarMap = {
-    ar: `اغاني مشابهة ${songTitle}`,
-    he: `שירים דומים ל ${songTitle}`,
-    ru: `похожие на ${songTitle}`,
-    ja: `${songTitle} 似た曲`,
-    ko: `${songTitle} 비슷한 노래`,
-    es: `canciones similares a ${songTitle}`,
-    fr: `chansons similaires à ${songTitle}`,
-    de: `ähnliche Lieder wie ${songTitle}`,
-    it: `canzoni simili a ${songTitle}`,
-    en: `songs similar to ${songTitle}`,
-  };
-  queries.push(similarMap[lang] || `songs similar to ${songTitle}`);
+  if (artistEscape || !artist) {
+    // Artist escape or unknown artist — search genre/vibe, NOT song title
+    const genreMap = {
+      ar: 'اغاني عربية رومانسية',
+      he: 'שירים ישראלים',
+      ru: 'российские хиты',
+      ja: '日本語の人気曲',
+      ko: '한국 인기 가요',
+      es: 'pop en español popular',
+      fr: 'chansons françaises populaires',
+      de: 'deutsche Musik Pop',
+      it: 'musica italiana pop',
+      en: artist ? `${artist} similar artists songs` : 'popular songs',
+    };
+    queries.push(genreMap[lang] || genreMap.en);
+  }
 
-  // Broader genre fallback — song title only, no junk words
-  queries.push(songTitle);
+  // Final fallback: artist only (no song title), or generic
+  if (artist) queries.push(artist);
 
   return queries.filter(Boolean);
 }
@@ -396,9 +415,10 @@ class MusicQueue {
       if (!node) return null;
 
       // ── Always anchor to the last user-requested song, not the last autoplay ──
-      // This prevents drift: autoplay stays close to what the user asked for
       const anchor = this._anchorTrack || this.current;
-      const { artist, songTitle } = splitTrack(anchor.title);
+      let { artist, songTitle } = splitTrack(anchor.title);
+      // If splitTrack couldn't extract artist (junk title), use the YouTube channel name
+      if (!artist && anchor.author) artist = anchor.author;
       const lang = detectLanguage(anchor.title + ' ' + (anchor.author || '') + ' ' + artist);
 
       this._autoStep++;
