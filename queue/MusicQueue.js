@@ -198,7 +198,7 @@ function buildQueries(artist, songTitle, lang, escape, artistEscape) {
       fr: 'chansons françaises populaires',
       de: 'deutsche Musik Pop',
       it: 'musica italiana pop',
-      en: artist ? `${artist} similar artists songs` : 'popular songs',
+      en: artist ? `${artist} similar artists songs` : 'popular music',
     };
     queries.push(genreMap[lang] || genreMap.en);
   }
@@ -417,9 +417,21 @@ class MusicQueue {
       // ── Always anchor to the last user-requested song, not the last autoplay ──
       const anchor = this._anchorTrack || this.current;
       let { artist, songTitle } = splitTrack(anchor.title);
-      // If splitTrack couldn't extract artist (junk title), use the YouTube channel name
+
+      // Fallback 1: YouTube channel/author field (populated from Lavalink t.info.author)
       if (!artist && anchor.author) artist = anchor.author;
-      const lang = detectLanguage(anchor.title + ' ' + (anchor.author || '') + ' ' + artist);
+
+      // Fallback 2: user's raw search query — extract first word(s) as artist hint
+      // e.g. "Sherine Kalam Einieh" → try "Sherine" as artist
+      if (!artist && anchor._rawQuery) {
+        const qParts = anchor._rawQuery.trim().split(/\s+/);
+        // Use first 1-2 words if query is multi-word (likely "Artist Song")
+        artist = qParts.length >= 2 ? qParts.slice(0, 2).join(' ') : qParts[0];
+      }
+
+      // Detect language from combined signals
+      const langText = anchor.title + ' ' + (anchor.author || '') + ' ' + (anchor._rawQuery || '') + ' ' + artist;
+      const lang = detectLanguage(langText);
 
       this._autoStep++;
       const forceEscape  = this._autoStep % 5 === 0;
@@ -552,6 +564,7 @@ class MusicQueue {
             encoded     : pick.encoded,
             title       : pick.info.title,
             uri         : pick.info.uri,
+            author      : pick.info.author || null,
             duration    : fmt(pick.info.length),
             durationMs  : pick.info.length,
             thumbnail   : pick.info.artworkUrl || null,
