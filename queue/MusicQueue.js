@@ -125,7 +125,11 @@ const BLOCK_PARTIAL = [
   'english translation','easy lyrics','with audio',
   'best part','perfect ending','intro only',
   '1 hour','hours loop','hour loop',
-  'شيلة','شيله','أنشودة','نشيد',   // Arabic chant formats
+  'شيلة','شيله','أنشودة','نشيد',         // Arabic chant formats
+  'نسخة مدرسية','نسخه مدرسيه',            // Arabic "school version"
+  'للأطفال','للاطفال','أطفال',            // Arabic "for children/kids"
+  'اناشيد','أناشيد',                      // Arabic religious hymns
+  'مدرسية','مدرسيه',                      // Arabic "school"             // specific junk pattern
   'street reaction','public reaction','that one song',
   'took over','whole street','vibe took',
 ];
@@ -213,6 +217,7 @@ class MusicQueue {
     this._seenFps     = new Set();
     this._artistCount = new Map();
     this._autoStep    = 0;
+    this._anchorTrack = null;  // last user-requested track — autoplay always anchors here
 
     this.player.on('end', data => {
       if (data.reason === 'replaced') return;
@@ -310,7 +315,7 @@ class MusicQueue {
       if (!this.current) {
         this.client.user.setActivity('🎵 Type a song name!', { type: ActivityType.Listening });
       } else {
-        this.client.user.setActivity('🎵🕺' + this.current.title, { type: ActivityType.Listening });
+        this.client.user.setActivity('🎵🕺'+this.current.title, { type: ActivityType.Listening });
       }
     } catch (_) {}
   }
@@ -319,6 +324,8 @@ class MusicQueue {
   async addTrack(track) {
     if (track.uri)   this._seenUris.add(track.uri);
     if (track.title) this._seenFps.add(fingerprint(track.title));
+    // Always update anchor when a real user requests a song
+    if (!track._autoplay) this._anchorTrack = track;
     this.tracks.push(track);
     if (!this.current) await this._playNext();
   }
@@ -358,6 +365,8 @@ class MusicQueue {
     // Register current song as seen immediately
     if (this.current.uri)   this._seenUris.add(this.current.uri);
     if (this.current.title) this._seenFps.add(fingerprint(this.current.title));
+    // Keep anchor updated to the most recent user-requested song
+    if (!this.current._autoplay) this._anchorTrack = this.current;
 
     if (this.current._requesterId) {
       recordPlay(this.current, this.current._requesterId, this.current.requester);
@@ -386,10 +395,11 @@ class MusicQueue {
       const node = this.client.shoukaku.getIdealNode();
       if (!node) return null;
 
-      // ── Parse current song ───────────────────────────────────────────────
-      // splitTrack works on the RAW title — don't pre-strip the " - "
-      const { artist, songTitle } = splitTrack(this.current.title);
-      const lang = detectLanguage(this.current.title + ' ' + (this.current.author || '') + ' ' + artist);
+      // ── Always anchor to the last user-requested song, not the last autoplay ──
+      // This prevents drift: autoplay stays close to what the user asked for
+      const anchor = this._anchorTrack || this.current;
+      const { artist, songTitle } = splitTrack(anchor.title);
+      const lang = detectLanguage(anchor.title + ' ' + (anchor.author || '') + ' ' + artist);
 
       this._autoStep++;
       const forceEscape  = this._autoStep % 5 === 0;
@@ -397,11 +407,15 @@ class MusicQueue {
       const artistPlays  = artistKey ? (this._artistCount.get(artistKey) || 0) : 0;
       const artistEscape = artistPlays >= 2;
 
-      console.log(`[Autoplay] Step:${this._autoStep} Lang:${lang} Artist:"${artist}" Song:"${songTitle}" Escape:${forceEscape} ArtistEsc:${artistEscape}`);
+      console.log(`[Autoplay] Step:${this._autoStep} Lang:${lang} Artist:"${artist}" Song:"${songTitle}" Escape:${forceEscape} ArtistEsc:${artistEscape} Anchor:"${anchor.title}"`);
 
       const queries = buildQueries(artist, songTitle, lang, forceEscape, artistEscape);
 
       // ── Current song identity for dupe detection ─────────────────────────
+      // Use anchor for self-comparison so autoplay picks never look like the anchor song
+      const anchorFp    = fingerprint(anchor.title);
+      const anchorNorm  = normalize(anchor.title);
+      // Also keep current for deduplication
       const currentFp   = fingerprint(this.current.title);
       const currentNorm = normalize(this.current.title);
 
@@ -431,16 +445,22 @@ class MusicQueue {
             if (this._seenUris.has(uri))  return false;
             if (this._seenFps.has(fp))    return false;
 
-            // Same as currently playing
+            // Same as currently playing or anchor song
             if (uri === this.current.uri) return false;
+            if (uri === anchor.uri)       return false;
             if (fp === currentFp)         return false;
+            if (fp === anchorFp)          return false;
 
-            // Same song family (fingerprint containment)
+            // Same song family (fingerprint containment) — check both
             if (fp.length > 3 && currentFp.length > 3) {
               if (fp.includes(currentFp) || currentFp.includes(fp)) return false;
             }
+            if (fp.length > 3 && anchorFp.length > 3) {
+              if (fp.includes(anchorFp) || anchorFp.includes(fp)) return false;
+            }
 
-            // High title similarity → same song different version
+            // High title similarity to anchor or current → same song different version
+            if (similarity(titleNorm, anchorNorm) > 0.50)  return false;
             if (similarity(titleNorm, currentNorm) > 0.55) return false;
 
             // Hard blocklist
@@ -475,8 +495,10 @@ class MusicQueue {
             const aPlays    = this._artistCount.get(author) || 0;
 
             let score = 100;
-            // Mild boost for same artist (fresh artist, not repeated)
-            if (artistKey && author.includes(artistKey) && !artistEscape) score += 20;
+            // Mild boost for same artist as anchor (fresh artist, not repeated)
+            const anchorArtistKey = splitTrack(anchor.title).artist.toLowerCase().trim();
+            if (anchorArtistKey && author.includes(anchorArtistKey) && !artistEscape) score += 20;
+            if (artistKey && author.includes(artistKey) && !artistEscape) score += 10;
             // Heavy penalty for repeated artist
             score -= aPlays * 35;
             // Penalty for title similarity to current
