@@ -182,7 +182,9 @@ const MUSIC_GRAPH = {
       'Chief Keef','Roddy Ricch','NAV','Baby Keem',
       'Moneybagg Yo','NLE Choppa','Polo G','A Boogie Wit Da Hoodie',
       'Lil Uzi Vert','Trippie Redd','EST Gee','Fetty Wap',
-      'Meek Mill','Rich The Kid','Destroy Lonely','Ken Carson'
+      'Meek Mill','Rich The Kid','Destroy Lonely','Ken Carson',
+      'Playboi Carti','Lil Tecca','Pardison Fontaine','Smokepurpp',
+      'Blac Youngsta','DDG','Rod Wave','Lil Tjay','Lil Keed'
     ],
 
     us_rap: [
@@ -193,18 +195,19 @@ const MUSIC_GRAPH = {
       'Juice WRLD','XXXTENTACION','Pop Smoke',
       'Snoop Dogg','Ice Cube','Cordae','NF',
       'Machine Gun Kelly','Big Sean','Wiz Khalifa',
-      'Chance The Rapper','Russ','G-Eazy'
+      'Chance The Rapper','Russ','G-Eazy',
+      'Anderson .Paak','Denzel Curry','Run The Jewels',
+      'JID','ScHoolboy Q','Ab-Soul','A$AP Rocky'
     ],
 
     uk_drill: [
       'Central Cee','Digga D','Headie One','Unknown T',
       'Russ Millions','Tion Wayne','Loski','CB',
       'Abra Cadabra','K-Trap','DigDat','Stormzy',
-      'Aitch','RV','Clavish','M24',
-      '67','Harlem Spartans','PS Hitsquad',
-      'Bandokay','Double Lz','SJ','E1',
-      'KO','DA','Suspect','Buni',
-      'A92','Fumez The Engineer','M Huncho'
+      'Aitch','Clavish','M24','67',
+      'Harlem Spartans','PS Hitsquad','Bandokay','Double Lz',
+      'KO','Suspect','Fumez The Engineer','M Huncho',
+      'Fredo','Loski','SL','E1','AM'
     ],
 
     french_rap: [
@@ -216,7 +219,8 @@ const MUSIC_GRAPH = {
       'Djadja & Dinaz','Maes','Soprano',
       'Black M','Gradur','Lomepal',
       'Rohff','Alonzo','Zola',
-      'Kalash Criminel','RimK','Naps'
+      'Kalash Criminel','RimK','Naps',
+      'Dadju','Maître Gims','Orelsan','Tiakola'
     ],
 
     egyptian_trap: [
@@ -225,26 +229,21 @@ const MUSIC_GRAPH = {
       'Mousv','Abo El Anwar','Ziad Zaza',
       'El Joker','Double Zuksh','Madd',
       'Mollo Tov','7liwa','L5VAV','tul8te',
-      'Moscow','Costa','A-K',
-      'Ragz','Psycho M','Mido Zoher',
-      'Big Moe','Alemond','Lil Baba',
-      'Arsenik','Abo El Raw','Fares Sokar'
+      'Costa','A-K','Ragz','Psycho M',
+      'Big Moe','Lil Baba','Arsenik','Fares Sokar',
+      'Ramy Donjewan','Abo El Raw','Marwan Younis'
     ],
 
     egyptian_mahraganat: [
       'Hassan Shakosh','Hamo Bika','Oka & Ortega',
       'Essam Sasa','Muslim','Filo',
       'Sadat','Fifty','Ahmed Moza',
-      'Ali Qaddoura','نور التوت',
-      'حمو الطيخا','عنبه','كزبرة',
-      'شحتة كاريكا','الدخلاوية',
-      'المدفعجية','أحمد شيبة',
+      'Ali Qaddoura','حمو الطيخا','عنبه','كزبرة',
+      'شحتة كاريكا','الدخلاوية','المدفعجية',
       'رضا البحراوي','حسن البرنس',
       'حودة بندق','إسلام كابونجا',
-      'بودا محمد','شواحة',
-      'محمود الليثي','محمود معتمد',
-      'إبراهيم الأبيض','أورتيجا',
-      'عصام صاصا','أحمد عبده'
+      'محمود الليثي','محمود معتمد','عصام صاصا',
+      'توليت','علي قدورة','سادات'
     ]
   },
 
@@ -259,29 +258,67 @@ const MUSIC_GRAPH = {
       'Selena Gomez','Justin Bieber',
       'Camila Cabello','Sam Smith',
       'Lewis Capaldi','James Arthur',
-      'One Direction','Katy Perry',
-      'Lady Gaga','Rihanna','Lorde',
-      'Halsey','Sabrina Carpenter',
-      'Lana Del Rey','Benson Boone',
-      'Conan Gray','Tate McRae',
+      'Katy Perry','Lady Gaga','Rihanna',
+      'Lorde','Halsey','Sabrina Carpenter',
+      'Lana Del Rey','Tate McRae',
       'Adele','Bruno Mars',
-      'The Weeknd','Post Malone'
+      'The Weeknd','Post Malone',
+      'Sia','Zayn','OneRepublic',
+      'Ava Max','Troye Sivan','Conan Gray',
+      'Shawn Mendes','Benson Boone'
     ],
 
-    arabic_pop: [
+    egyptian_pop: [
       'Amr Diab','Tamer Hosny','Hamaki',
-      'Sherine','Angham','tul8te','Nancy Ajram',
-      'Elissa','Wael Kfoury','Ramy Sabry',
-      'Tamer Ashour','Bahaa Sultan',
-      'Mohamed Mounir','Ahmed Saad',
-      'Mohamed Fouad','Mostafa Amar',
-      'Wael Jassar','Assala',
-      'Nassif Zeytoun','Majid Al Mohandis',
-      'Ragheb Alama','Ruby','Hakim',
-      'Ahmed Kamel','Cairokee',
-      'Abu','Saad Lamjarred',
-      'Carole Samaha','Nawal Al Zoghbi',
-      'Mohamed Hamaki','Adam'
+      'Sherine','Angham','Mohamed Mounir',
+      'Ahmed Saad','Mohamed Fouad',
+      'Mostafa Amar','Ruby',
+      'Cairokee','Abu',
+      'Ahmed Kamel','Tamer Ashour',
+      'Bahaa Sultan','Adam',
+      'Nancy Ajram','Elissa','Wael Kfoury',
+      'Assala','Carole Samaha','Nawal Al Zoghbi',
+      'Ragheb Alama','Majid Al Mohandis',
+      'Nassif Zeytoun','Saad Lamjarred',
+      'Balqees','Amal Maher',
+      'Abu','Adam','Yara',
+      'Fadl Shaker','Hussein Al Jasmi',
+      'Fayez Al Saeed','Ahlam','Mohamed Assaf','Tul8te'
+    ],
+
+    french_pop: [
+      'Indila','Stromae','Zaz',
+      'Maitre Gims','Dadju',
+      'Black M','Amel Bent',
+      'Slimane','Vitaa',
+      'Kendji Girac','Clara Luciani',
+      'Angèle','Louane',
+      'Julien Doré','Soprano',
+      'Aya Nakamura','Gims','Naps',
+      'Jul','Orelsan','Vianney','Zaho'
+    ],
+
+    spanish_pop: [
+      'Shakira','Ricky Martin','Enrique Iglesias',
+      'Maluma','J Balvin','Bad Bunny',
+      'Karol G','Ozuna','Anuel AA',
+      'Daddy Yankee','Rosalía',
+      'Sebastián Yatra','Becky G',
+      'Nicky Jam','Luis Fonsi',
+      'Feid','Romeo Santos','Marc Anthony',
+      'Myke Towers','Quevedo','Rauw Alejandro'
+    ],
+
+    italian_pop: [
+      'Laura Pausini','Tiziano Ferro',
+      'Eros Ramazzotti','Andrea Bocelli',
+      'Måneskin','Ultimo',
+      'Fedez','Jovanotti',
+      'Ghali','Mahmood',
+      'Marco Mengoni','Emma Marrone',
+      'Elisa','Annalisa',
+      'Irama','Achille Lauro',
+      'Blanco','Sfera Ebbasta','Capo Plaza'
     ],
 
     kpop: [
@@ -291,12 +328,8 @@ const MUSIC_GRAPH = {
       'ITZY','EXO','SEVENTEEN',
       'NCT','NewJeans','LE SSERAFIM',
       'ATEEZ','BIGBANG','SHINee',
-      'Girls Generation','GOT7',
-      'MONSTA X','TREASURE',
       'BABYMONSTER','RIIZE',
-      'ILLIT','ZEROBASEONE',
-      'BOYNEXTDOOR','KISS OF LIFE',
-      'Super Junior','2NE1'
+      '(G)I-DLE','IVE','ITZY'
     ]
   },
 
@@ -312,12 +345,10 @@ const MUSIC_GRAPH = {
       'Afrojack','Don Diablo',
       'Steve Aoki','Skrillex',
       'Alesso','KSHMR','Nicky Romero',
-      'Dimitri Vegas & Like Mike',
-      'R3HAB','Lost Frequencies',
-      'Robin Schulz','MEDUZA',
-      'Swedish House Mafia',
-      'Oliver Heldens','W&W',
-      'Timmy Trumpet','Peggy Gou','Fred again..'
+      'Swedish House Mafia','R3HAB',
+      'Lost Frequencies','Fred again..',
+      'Illenium','Martin Solveig','Madeon',
+      'Tobu','ODESZA','San Holo'
     ],
 
     house: [
@@ -325,15 +356,11 @@ const MUSIC_GRAPH = {
       'Dom Dolla','MK','CamelPhat',
       'Mau P','Diplo','Vintage Culture',
       'Black Coffee','Claptone',
-      'Solomun','HUGEL','Tchami',
-      'KREAM','SIDEPIECE',
-      'James Hype','MEDUZA',
-      'Peggy Gou','Disclosure',
-      'Purple Disco Machine',
-      'Kaskade','Duke Dumont',
-      'Gorgon City','Joel Corry',
-      'Sonny Fodera','Malaa',
-      'Dennis Cruz','Acraze','Alofoke'
+      'Solomun','Tchami','SIDEPIECE',
+      'James Hype','Disclosure',
+      'Peggy Gou','Purple Disco Machine',
+      'Duke Dumont','Gorgon City','Joel Corry',
+      'Sonny Fodera','ACRAZE','MEDUZA'
     ],
 
     techno: [
@@ -342,62 +369,29 @@ const MUSIC_GRAPH = {
       'Nina Kraviz','Boris Brejcha',
       'Tale Of Us','Anyma',
       'ARTBAT','HI-LO',
-      'Enrico Sangiuliano',
-      'Deborah De Luca',
-      'Reinier Zonneveld',
-      'I Hate Models','Kobosil',
-      'Alignment','999999999',
-      'Trym','Sara Landry',
+      'Deborah De Luca','Kobosil',
+      '999999999','Sara Landry',
       'Maddix','Space 92',
-      'Eli Brown','Klangkuenstler',
-      'Indira Paganotto',
-      'FJAAK','MORTEN',
-      'Anfisa Letyago',
-      'Brutalismus 3000',
-      'Rikhter','VTSS'
-    ],
-
-    phonk: [
-      'DVRST','Kordhell','INTERWORLD',
-      'MoonDeity','Dxrk ダーク',
-      'Ghostface Playa',
-      'Pharmacist','MC Orsen',
-      'KSLV Noh','Sxmpra',
-      'NUEKI','MUPP','LXST CXNTURY',
-      'PLAYAMANE','DJ Smokey',
-      'Ryan Celsius','Hensonn',
-      'Sahara','g3ox_em',
-      'Freddie Dredd','NxxxxxS',
-      'BLESSED MANE',
-      'Soudiere','DJ Yung Vamp',
-      'DJ Sacred','1nonly',
-      'Eternxlkz','SHADXWBXRN'
+      'I Hate Models','Charlotte de Witte','Enrico Sangiuliano',
+      'Alignment','Indira Paganotto','Reinier Zonneveld'
     ]
   },
 
   // ───────────────── ROCK ─────────────────
   rock: {
-
     alternative: [
       'Linkin Park','Imagine Dragons',
       'Arctic Monkeys','The Neighbourhood',
       'Coldplay','Twenty One Pilots',
       'Fall Out Boy','Paramore',
-      'My Chemical Romance',
-      'Green Day','Nirvana',
-      'Radiohead','Foo Fighters',
+      'My Chemical Romance','Green Day',
+      'Nirvana','Radiohead','Foo Fighters',
       'The Killers','Red Hot Chili Peppers',
-      'Panic! At The Disco',
       'Evanescence','Blink-182',
       'Bring Me The Horizon',
-      'System Of A Down',
-      'Metallica','Slipknot',
-      'Deftones','Muse',
-      'Avenged Sevenfold',
-      'Three Days Grace',
-      'Pierce The Veil',
-      'Sleeping With Sirens',
-      'Papa Roach','Sum 41'
+      'System Of A Down','Metallica',
+      'Slipknot','Deftones','Muse',
+      'Three Days Grace','Papa Roach','Sum 41'
     ]
   }
 };
@@ -585,55 +579,20 @@ function buildQueries(artist, songTitle, lang, escape, artistEscape) {
 
   if (!artist) {
 
-    const LANGUAGE_MUSIC_FALLBACK = {
-      ar: [
-        'egyptian rap songs',
-        'mahraganat egypt hits',
-        'arabic trap songs'
-      ],
-
-      en: [
-        'popular english songs 2025',
-        'top global hits playlist',
-        'viral english music mix'
-      ],
-
-      fr: [
-        'top french pop songs',
-        'chansons françaises populaires',
-        'french rap hits'
-      ],
-
-      es: [
-        'latin pop hits 2025',
-        'reggaeton popular songs',
-        'spanish music mix'
-      ],
-
-      ru: [
-        'popular russian songs',
-        'russian pop hits',
-        'rap russian playlist'
-      ],
-
-      ja: [
-        'japanese pop songs',
-        'jpop popular songs',
-        'anime music hits'
-      ],
-
-      ko: [
-        'kpop popular songs',
-        'korean pop hits',
-        'kpop playlist 2025'
-      ]
+    const genreMap = {
+      ar: 'egyptian rap trap',
+      he: 'songs Israel',
+      ru: 'popular Russian songs',
+      ja: 'popular Japanese songs',
+      ko: 'popular Korean songs',
+      es: 'latin pop hits',
+      fr: 'chansons françaises populaires',
+      de: 'deutsche Musik Pop',
+      it: 'musica italiana pop',
+      en: 'popular music hits',
     };
-    
-    const strain = this._languageStrain || lang;
 
-    const pool = LANGUAGE_MUSIC_FALLBACK[strain] || LANGUAGE_MUSIC_FALLBACK.en;
-
-    queries.push(pool[Math.floor(Math.random() * pool.length)]);
+    queries.push(genreMap[lang] || genreMap.en);
   }
 
   if (artist) {
@@ -657,7 +616,6 @@ class MusicQueue {
     this.textChannel = textChannel;
     this.player      = player;
     this.client      = client;
-    this._languageStrain = null;
     this.tracks      = [];
     this.history     = [];
     this.current     = null;
@@ -877,15 +835,7 @@ class MusicQueue {
 
       // Detect language from combined signals
       const langText = anchor.title + ' ' + (anchor.author || '') + ' ' + (anchor._rawQuery || '') + ' ' + artist;
-      const detectedLang = detectLanguage(langText);
-
-      // lock language strain only once per session chain
-      if (!this._languageStrain || this._autoStep === 1) {
-        this._languageStrain = detectedLang;
-      }
-
-      const lang = this._languageStrain;
-      
+      const lang = detectLanguage(langText);
 
       this._autoStep++;
       const forceEscape  = this._autoStep % 5 === 0;
@@ -895,13 +845,7 @@ class MusicQueue {
 
       console.log(`[Autoplay] Step:${this._autoStep} Lang:${lang} Artist:"${artist}" Song:"${songTitle}" Escape:${forceEscape} ArtistEsc:${artistEscape} Anchor:"${anchor.title}"`);
 
-      const queries = buildQueries(
-          normalizeArtistName(artist),
-          songTitle,
-          this._languageStrain || lang,
-          forceEscape,
-          artistEscape
-        );
+      const queries = buildQueries(normalizeArtistName(artist),songTitle,lang,forceEscape,artistEscape);
 
 
       // ── Current song identity for dupe detection ─────────────────────────
@@ -989,11 +933,7 @@ class MusicQueue {
                   if (!ok) return false;
                 }
               }
-              const strain = this._languageStrain || lang;
-              const titleLang = detectLanguage(info.title + ' ' + (info.author || ''));
-
-              // HARD BLOCK if mismatch (except English fallback)
-              if (strain !== 'en' && titleLang !== strain) {
+              else if (lang !== 'en' && candLang !== lang) {
                 return false;
               }
             }
