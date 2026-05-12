@@ -163,86 +163,360 @@ function isBlocked(normTitle, rawTitle) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Genre detection — infer genre from title/author/query text
+//  Query builder  — returns ordered list to try
 // ─────────────────────────────────────────────────────────────────────────────
-function detectGenre(title, author, rawQuery) {
-  const text = ((title || '') + ' ' + (author || '') + ' ' + (rawQuery || '')).toLowerCase();
-  // Script-based detection first (most reliable)
-  if (/[\u0600-\u06FF]/.test(text)) {
-    if (/\brap\b|\bهيب هوب\b|\bمهرجانات\b/.test(text)) return 'arabic_mahraganat';
-    return 'arabic_pop';
-  }
-  if (/[\uAC00-\uD7A3]/.test(text)) return 'kpop';
-  if (/[\u3040-\u30FF]/.test(text)) return 'jpop';
-  if (/[\u0400-\u04FF]/.test(text)) return 'russian_pop';
-  // Latin-script genre detection
-  if (/\brap\b|\bhip.?hop\b|\bdrill\b|\btrap\b|\bfreestyle\b/.test(text))       return 'rap';
-  if (/\brnb\b|\br&b\b|\bsoul\b|\bneo.?soul\b/.test(text))                        return 'rnb';
-  if (/\bmetal\b|\brock\b|\balternative\b|\blindie rock\b|\bgrunge\b/.test(text)) return 'rock';
-  if (/\bindic\b|\blindie pop\b|\blindie folk\b/.test(text))                         return 'indie';
-  if (/\bedm\b|\belectronic\b|\bhouse\b|\btechno\b|\bdubstep\b|\btrance\b/.test(text)) return 'electronic';
-  if (/\bjazz\b|\bblues\b|\bswing\b|\bbossa nova\b/.test(text))                   return 'jazz';
-  if (/\bcountry\b|\bbluegrass\b/.test(text))                                          return 'country';
-  if (/\breggaeton\b|\blatino\b|\bsalsa\b|\bbachata\b|\bcumbia\b/.test(text))   return 'latin';
-  if (/[àâçéèêëîïôûùœæ]/.test(text) || /\b(les|des|une|dans|avec)\b/.test(text))       return 'french_pop';
-  if (/[ñáéíóúü]/.test(text) || /\b(que|como|para|porque|muy)\b/.test(text))            return 'latin';
-  if (/[äöüß]/.test(text))                                                                 return 'german_pop';
-  return 'pop';
-}
+// ── Similar artists map ──────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  MUSIC GRAPH — PROFESSIONAL AUTOPLAY ENGINE
+// ─────────────────────────────────────────────────────────────────────────────
 
-// Genre → seed queries to discover artists from via Lavalink
-const GENRE_SEEDS = {
-  pop:              ['best pop songs 2023','popular pop hits 2022','top pop songs'],
-  rap:              ['best rap songs 2023','top hip hop hits','popular rap'],
-  rnb:              ['best rnb songs 2023','top r&b hits','popular soul rnb'],
-  rock:             ['best rock songs 2023','top rock hits','popular alternative rock'],
-  indie:            ['best indie songs 2023','top indie pop hits','popular indie folk'],
-  electronic:       ['best electronic music 2023','top edm hits','popular house music'],
-  jazz:             ['best jazz songs','top jazz hits','popular jazz standards'],
-  country:          ['best country songs 2023','top country hits','popular country music'],
-  latin:            ['best latin songs 2023','top reggaeton hits','popular latin pop'],
-  french_pop:       ['meilleure musique française 2023','chansons françaises populaires','pop française hits'],
-  german_pop:       ['beste deutsche Musik 2023','deutsche Pop Hits','populäre deutsche Lieder'],
-  kpop:             ['best kpop songs 2023','top kpop hits','popular kpop groups'],
-  jpop:             ['best jpop songs 2023','人気の日本語の曲','top japanese music'],
-  russian_pop:      ['лучшие российские хиты 2023','топ русские песни','популярная русская музыка'],
-  arabic_pop:       ['اجمل اغاني عربية 2023','اغاني عربية رومانسية','افضل اغاني عربية'],
-  arabic_mahraganat:['مهرجانات 2023','اغاني مهرجانات شعبية','راب عربي'],
+const MUSIC_GRAPH = {
+
+  // ───────────────── RAP ─────────────────
+  rap: {
+
+    us_trap: [
+      'Travis Scott','Future','Lil Baby','Gunna','Young Thug',
+      '21 Savage','Lil Durk','Playboi Carti','Don Toliver',
+      'Offset','Quavo','Metro Boomin','Yeat','Kodak Black',
+      'Chief Keef','Roddy Ricch','NAV','Baby Keem',
+      'Moneybagg Yo','NLE Choppa','Polo G','A Boogie Wit Da Hoodie',
+      'Lil Uzi Vert','Trippie Redd','EST Gee','Fetty Wap',
+      'Meek Mill','Rich The Kid','Destroy Lonely','Ken Carson'
+    ],
+
+    us_rap: [
+      'Drake','Kendrick Lamar','J Cole','Eminem','Lil Wayne',
+      'Nicki Minaj','Kanye West','50 Cent','Jay-Z',
+      'Tupac','Biggie','Nas','Logic','Joyner Lucas',
+      'Tyler The Creator','Mac Miller','Post Malone',
+      'Juice WRLD','XXXTENTACION','Pop Smoke',
+      'Snoop Dogg','Ice Cube','Cordae','NF',
+      'Machine Gun Kelly','Big Sean','Wiz Khalifa',
+      'Chance The Rapper','Russ','G-Eazy'
+    ],
+
+    uk_drill: [
+      'Central Cee','Digga D','Headie One','Unknown T',
+      'Russ Millions','Tion Wayne','Loski','CB',
+      'Abra Cadabra','K-Trap','DigDat','Stormzy',
+      'Aitch','RV','Clavish','M24',
+      '67','Harlem Spartans','PS Hitsquad',
+      'Bandokay','Double Lz','SJ','E1',
+      'KO','DA','Suspect','Buni',
+      'A92','Fumez The Engineer','M Huncho'
+    ],
+
+    french_rap: [
+      'Ninho','SCH','Booba','PNL','Damso',
+      'Nekfeu','Jul','Kaaris','Vald',
+      'Freeze Corleone','Niska','Lacrim',
+      'Gazo','SDM','Hamza','PLK',
+      'Koba LaD','Heuss L Enfoire',
+      'Djadja & Dinaz','Maes','Soprano',
+      'Black M','Gradur','Lomepal',
+      'Rohff','Alonzo','Zola',
+      'Kalash Criminel','RimK','Naps'
+    ],
+
+    egyptian_trap: [
+      'Wegz','Marwan Pablo','Abyusif','Marwan Moussa',
+      'Afroto','Batistuta','Lege-Cy','Shahyn',
+      'Mousv','Abo El Anwar','Ziad Zaza',
+      'El Joker','Double Zuksh','Madd',
+      'Mollo Tov','7liwa','L5VAV',
+      'Moscow','Costa','A-K',
+      'Ragz','Psycho M','Mido Zoher',
+      'Big Moe','Alemond','Lil Baba',
+      'Arsenik','Abo El Raw','Fares Sokar'
+    ],
+
+    egyptian_mahraganat: [
+      'Hassan Shakosh','Hamo Bika','Oka & Ortega',
+      'Essam Sasa','Muslim','Filo',
+      'Sadat','Fifty','Ahmed Moza',
+      'Ali Qaddoura','نور التوت',
+      'حمو الطيخا','عنبه','كزبرة',
+      'شحتة كاريكا','الدخلاوية',
+      'المدفعجية','أحمد شيبة',
+      'رضا البحراوي','حسن البرنس',
+      'حودة بندق','إسلام كابونجا',
+      'بودا محمد','شواحة',
+      'محمود الليثي','محمود معتمد',
+      'إبراهيم الأبيض','أورتيجا',
+      'عصام صاصا','أحمد عبده'
+    ]
+  },
+
+  // ───────────────── POP ─────────────────
+  pop: {
+
+    english_pop: [
+      'Taylor Swift','Dua Lipa','Ed Sheeran',
+      'Harry Styles','Olivia Rodrigo',
+      'Billie Eilish','Ariana Grande',
+      'Shawn Mendes','Charlie Puth',
+      'Selena Gomez','Justin Bieber',
+      'Camila Cabello','Sam Smith',
+      'Lewis Capaldi','James Arthur',
+      'One Direction','Katy Perry',
+      'Lady Gaga','Rihanna','Lorde',
+      'Halsey','Sabrina Carpenter',
+      'Lana Del Rey','Benson Boone',
+      'Conan Gray','Tate McRae',
+      'Adele','Bruno Mars',
+      'The Weeknd','Post Malone'
+    ],
+
+    arabic_pop: [
+      'Amr Diab','Tamer Hosny','Hamaki',
+      'Sherine','Angham','Nancy Ajram',
+      'Elissa','Wael Kfoury','Ramy Sabry',
+      'Tamer Ashour','Bahaa Sultan',
+      'Mohamed Mounir','Ahmed Saad',
+      'Mohamed Fouad','Mostafa Amar',
+      'Wael Jassar','Assala',
+      'Nassif Zeytoun','Majid Al Mohandis',
+      'Ragheb Alama','Ruby','Hakim',
+      'Ahmed Kamel','Cairokee',
+      'Abu','Saad Lamjarred',
+      'Carole Samaha','Nawal Al Zoghbi',
+      'Mohamed Hamaki','Adam'
+    ],
+
+    kpop: [
+      'BTS','BLACKPINK','TWICE',
+      'Stray Kids','ENHYPEN','TXT',
+      'IVE','aespa','Red Velvet',
+      'ITZY','EXO','SEVENTEEN',
+      'NCT','NewJeans','LE SSERAFIM',
+      'ATEEZ','BIGBANG','SHINee',
+      'Girls Generation','GOT7',
+      'MONSTA X','TREASURE',
+      'BABYMONSTER','RIIZE',
+      'ILLIT','ZEROBASEONE',
+      'BOYNEXTDOOR','KISS OF LIFE',
+      'Super Junior','2NE1'
+    ]
+  },
+
+  // ───────────────── ELECTRONIC ─────────────────
+  electronic: {
+
+    edm: [
+      'Martin Garrix','David Guetta','Avicii',
+      'Alan Walker','Marshmello',
+      'Calvin Harris','Kygo','Zedd',
+      'The Chainsmokers','Tiësto',
+      'Hardwell','Armin van Buuren',
+      'Afrojack','Don Diablo',
+      'Steve Aoki','Skrillex',
+      'Alesso','KSHMR','Nicky Romero',
+      'Dimitri Vegas & Like Mike',
+      'R3HAB','Lost Frequencies',
+      'Robin Schulz','MEDUZA',
+      'Swedish House Mafia',
+      'Oliver Heldens','W&W',
+      'Timmy Trumpet','Peggy Gou','Fred again..'
+    ],
+
+    house: [
+      'FISHER','Chris Lake','John Summit',
+      'Dom Dolla','MK','CamelPhat',
+      'Mau P','Diplo','Vintage Culture',
+      'Black Coffee','Claptone',
+      'Solomun','HUGEL','Tchami',
+      'KREAM','SIDEPIECE',
+      'James Hype','MEDUZA',
+      'Peggy Gou','Disclosure',
+      'Purple Disco Machine',
+      'Kaskade','Duke Dumont',
+      'Gorgon City','Joel Corry',
+      'Sonny Fodera','Malaa',
+      'Dennis Cruz','Acraze','Alofoke'
+    ],
+
+    techno: [
+      'Charlotte de Witte','Amelie Lens',
+      'Adam Beyer','Carl Cox',
+      'Nina Kraviz','Boris Brejcha',
+      'Tale Of Us','Anyma',
+      'ARTBAT','HI-LO',
+      'Enrico Sangiuliano',
+      'Deborah De Luca',
+      'Reinier Zonneveld',
+      'I Hate Models','Kobosil',
+      'Alignment','999999999',
+      'Trym','Sara Landry',
+      'Maddix','Space 92',
+      'Eli Brown','Klangkuenstler',
+      'Indira Paganotto',
+      'FJAAK','MORTEN',
+      'Anfisa Letyago',
+      'Brutalismus 3000',
+      'Rikhter','VTSS'
+    ],
+
+    phonk: [
+      'DVRST','Kordhell','INTERWORLD',
+      'MoonDeity','Dxrk ダーク',
+      'Ghostface Playa',
+      'Pharmacist','MC Orsen',
+      'KSLV Noh','Sxmpra',
+      'NUEKI','MUPP','LXST CXNTURY',
+      'PLAYAMANE','DJ Smokey',
+      'Ryan Celsius','Hensonn',
+      'Sahara','g3ox_em',
+      'Freddie Dredd','NxxxxxS',
+      'BLESSED MANE',
+      'Soudiere','DJ Yung Vamp',
+      'DJ Sacred','1nonly',
+      'Eternxlkz','SHADXWBXRN'
+    ]
+  },
+
+  // ───────────────── ROCK ─────────────────
+  rock: {
+
+    alternative: [
+      'Linkin Park','Imagine Dragons',
+      'Arctic Monkeys','The Neighbourhood',
+      'Coldplay','Twenty One Pilots',
+      'Fall Out Boy','Paramore',
+      'My Chemical Romance',
+      'Green Day','Nirvana',
+      'Radiohead','Foo Fighters',
+      'The Killers','Red Hot Chili Peppers',
+      'Panic! At The Disco',
+      'Evanescence','Blink-182',
+      'Bring Me The Horizon',
+      'System Of A Down',
+      'Metallica','Slipknot',
+      'Deftones','Muse',
+      'Avenged Sevenfold',
+      'Three Days Grace',
+      'Pierce The Veil',
+      'Sleeping With Sirens',
+      'Papa Roach','Sum 41'
+    ]
+  }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Query builder — fully dynamic, no hardcoded artist lists
+//  ARTIST ALIASES
 // ─────────────────────────────────────────────────────────────────────────────
-function buildQueries(artist, lang, artistEscape, escape, genrePool) {
+
+const ARTIST_ALIASES = {
+  'weeknd': 'the weeknd',
+  'pablo': 'marwan pablo',
+  'ويجز': 'wegz',
+  'ابيوسف': 'abyusif',
+  'حماقي': 'hamaki',
+  'شيرين': 'sherine',
+  'عمرو دياب': 'amr diab',
+  'تامر حسني': 'tamer hosny',
+  'دريك': 'drake',
+  'كانييه': 'kanye west'
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  FLATTEN GRAPH
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ARTIST_TO_GROUP = {};
+const GROUP_POOLS = {};
+
+for (const genre of Object.values(MUSIC_GRAPH)) {
+  for (const [group, artists] of Object.entries(genre)) {
+    GROUP_POOLS[group] = artists;
+
+    for (const artist of artists) {
+      ARTIST_TO_GROUP[artist.toLowerCase()] = group;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  FIND SIMILAR ARTISTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function normalizeArtistName(name) {
+  const clean = (name || '').toLowerCase().trim();
+  return ARTIST_ALIASES[clean] || clean;
+}
+
+function getSimilarArtists(artistName) {
+
+  const normalized = normalizeArtistName(artistName);
+
+  let group = ARTIST_TO_GROUP[normalized];
+
+  // partial match fallback
+  if (!group) {
+    const partial = Object.keys(ARTIST_TO_GROUP).find(a =>
+      normalized.includes(a) || a.includes(normalized)
+    );
+
+    if (partial) {
+      group = ARTIST_TO_GROUP[partial];
+    }
+  }
+
+  // ultimate fallback
+  if (!group) {
+    group = 'english_pop';
+  }
+
+  return GROUP_POOLS[group] || GROUP_POOLS.english_pop;
+}
+
+
+function buildQueries(artist, songTitle, lang, escape, artistEscape) {
   const queries = [];
 
-  if (escape || artistEscape) {
-    // Pick a random artist from the dynamically discovered pool
-    if (genrePool && genrePool.length > 0) {
-      const available = genrePool.filter(a => a.toLowerCase() !== (artist || '').toLowerCase());
-      if (available.length > 0) {
-        const pick = available[Math.floor(Math.random() * available.length)];
-        queries.push(`${pick} songs`);
-        queries.push(`${pick} official songs`);
-        return queries.filter(Boolean);
-      }
-    }
-    // Pool not ready yet — search for similar artists dynamically
-    if (artist) {
-      queries.push(`${artist} songs`);  // fallback to same artist until pool is ready
-    }
+  if (escape) {
+    // Hard escape: random similar artist from the pool
+    const pool      = getSimilarArtists(artist).filter(a => a.toLowerCase() !== (artist || '').toLowerCase());
+    const hopArtist = pool[Math.floor(Math.random() * pool.length)] || pool[0];
+    if (hopArtist) queries.push(`${hopArtist} songs`);
     return queries.filter(Boolean);
   }
 
-  if (artist) {
+  if (artist && !artistEscape) {
+    // PRIMARY: same artist — do NOT include song title to avoid same-song results
     queries.push(`${artist} songs`);
     queries.push(`${artist} official songs`);
-    queries.push(artist);
   }
 
+  if (artistEscape) {
+    // Random hop to a similar artist — different every call, feels organic
+    const pool      = getSimilarArtists(artist).filter(a => a.toLowerCase() !== (artist || '').toLowerCase());
+    const hopArtist = pool[Math.floor(Math.random() * pool.length)];
+    if (hopArtist) {
+      queries.push(`${hopArtist} songs`);
+      queries.push(`${hopArtist} official songs`);
+    }
+  }
+
+  if (!artist) {
+    const genreMap = {
+      ar: 'اغاني عربية رومانسية',
+      he: 'songs Israel',
+      ru: 'popular Russian songs',
+      ja: 'popular Japanese songs',
+      ko: 'popular Korean songs',
+      es: 'latin pop hits',
+      fr: 'chansons françaises populaires',
+      de: 'deutsche Musik Pop',
+      it: 'musica italiana pop',
+      en: 'popular music hits',
+    };
+    queries.push(genreMap[lang] || genreMap.en);
+  }
+
+  if (artist) queries.push(artist);
   return queries.filter(Boolean);
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  MusicQueue
@@ -271,10 +545,7 @@ class MusicQueue {
     this._seenFps     = new Set();
     this._artistCount = new Map();
     this._autoStep    = 0;
-    this._anchorTrack = null;   // last user-requested track — autoplay always anchors here
-    this._genrePool   = [];     // dynamically discovered artist pool (up to 30)
-    this._genreKey    = null;   // genre key for the current pool
-    this._poolReady   = false;  // true once pool has been built
+    this._anchorTrack = null;  // last user-requested track — autoplay always anchors here
 
     this.player.on('end', data => {
       if (data.reason === 'replaced') return;
@@ -441,47 +712,6 @@ class MusicQueue {
     }
   }
 
-  // ── Genre pool builder — discovers up to 30 real artists via Lavalink ────────
-  async _buildGenrePool(genre, anchorArtist, lang) {
-    const seeds = GENRE_SEEDS[genre] || GENRE_SEEDS.pop;
-    const pool  = new Map(); // artistName (lowercase) → display name
-
-    const JUNK_CH = /lyrics|letra|translations?|official audio|music box|records|entertainment|topic$|channel|compilation|hits|playlist|\d{4}|zaramarazz|ncs|nhạc|rotana|arabsounds|free music|\bmusic\b$/i;
-
-    try {
-      const node = this.client.shoukaku.getIdealNode();
-      if (!node) return [];
-
-      for (const seed of seeds) {
-        if (pool.size >= 30) break;
-        try {
-          const res = await node.rest.resolve(`ytsearch:${seed}`);
-          if (res?.loadType !== 'search' || !res.data?.length) continue;
-
-          for (const t of res.data) {
-            if (pool.size >= 30) break;
-            const rawAuthor = (t.info.author || '').trim();
-            const lowerAuth = rawAuthor.toLowerCase();
-
-            // Skip junk channels, skip anchor artist, skip already added
-            if (!rawAuthor)                           continue;
-            if (JUNK_CH.test(rawAuthor))              continue;
-            if (lowerAuth === (anchorArtist || '').toLowerCase()) continue;
-            if (pool.has(lowerAuth))                  continue;
-
-            // Language consistency check — ensure artist name matches expected script
-            const authorLang = detectLanguage(rawAuthor + ' ' + (t.info.title || ''));
-            if (lang !== 'en' && authorLang !== lang && authorLang !== 'en') continue;
-
-            pool.set(lowerAuth, rawAuthor);
-          }
-        } catch (_) { continue; }
-      }
-    } catch (_) {}
-
-    return [...pool.values()]; // array of display-name strings
-  }
-
   // ── Autoplay core ───────────────────────────────────────────────────────────
   async _findRelated() {
     if (!this.current) return null;
@@ -518,31 +748,16 @@ class MusicQueue {
       const langText = anchor.title + ' ' + (anchor.author || '') + ' ' + (anchor._rawQuery || '') + ' ' + artist;
       const lang = detectLanguage(langText);
 
-      // Detect genre for pool management
-      const genre = detectGenre(anchor.title, anchor.author, anchor._rawQuery);
-
-      // ── Build/rebuild genre pool when genre changes ────────────────────────
-      if (!this._poolReady || this._genreKey !== genre) {
-        this._genreKey  = genre;
-        this._poolReady = false;
-        this._genrePool = [];
-        // Discover asynchronously so first autoplay isn't delayed
-        this._buildGenrePool(genre, artist, lang).then(pool => {
-          this._genrePool  = pool;
-          this._poolReady  = true;
-          console.log(`[Autoplay] 🎵 Genre pool ready: ${genre} | ${pool.length} artists | ${pool.slice(0,5).join(', ')}...`);
-        }).catch(() => {});
-      }
-
       this._autoStep++;
-      const forceEscape  = this._autoStep % 7 === 0;
+      const forceEscape  = this._autoStep % 5 === 0;
       const artistKey    = artist.toLowerCase().trim();
       const artistPlays  = artistKey ? (this._artistCount.get(artistKey) || 0) : 0;
       const artistEscape = artistPlays >= 3;
 
-      console.log(`[Autoplay] Step:${this._autoStep} Genre:${genre} Lang:${lang} Artist:"${artist}" ArtistEsc:${artistEscape} Pool:${this._genrePool.length}`);
+      console.log(`[Autoplay] Step:${this._autoStep} Lang:${lang} Artist:"${artist}" Song:"${songTitle}" Escape:${forceEscape} ArtistEsc:${artistEscape} Anchor:"${anchor.title}"`);
 
-      const queries = buildQueries(artist, lang, artistEscape, forceEscape, this._genrePool);
+      const queries = buildQueries(normalizeArtistName(artist),songTitle,lang,forceEscape,artistEscape);
+
 
       // ── Current song identity for dupe detection ─────────────────────────
       // Use anchor for self-comparison so autoplay picks never look like the anchor song
@@ -629,7 +844,7 @@ class MusicQueue {
 
             let score = 100;
             // Mild boost for same artist as anchor (fresh artist, not repeated)
-            const anchorArtistKey = splitTrack(anchor.title).artist.toLowerCase().trim();
+            const anchorArtistKey = (splitTrack(anchor.title).artist || '').toLowerCase().trim();
             if (anchorArtistKey && author.includes(anchorArtistKey) && !artistEscape) score += 20;
             if (artistKey && author.includes(artistKey) && !artistEscape) score += 10;
             // Heavy penalty for repeated artist
