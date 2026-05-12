@@ -507,13 +507,8 @@ function buildQueries(artist, songTitle, lang, escape, artistEscape) {
     const hopArtist = pool[Math.floor(Math.random() * pool.length)] || pool[0];
 
     if (hopArtist) {
-
-      if (lang === 'ar') {
-        queries.push(`${hopArtist} أغاني`);
-      }
-      else {
         queries.push(`${hopArtist} songs`);
-      }
+        queries.push(`${hopArtist} official songs`);
     }
 
     return queries.filter(Boolean);
@@ -528,7 +523,7 @@ function buildQueries(artist, songTitle, lang, escape, artistEscape) {
     // VERY IMPORTANT FIX
     // Ambiguous artists MUST include egypt/arab context
 
-    if (ambiguous || lang === 'ar') {
+    if (ambiguous && lang === 'ar') {
 
       queries.push(`${artist} أغاني`);
     }
@@ -550,14 +545,8 @@ function buildQueries(artist, songTitle, lang, escape, artistEscape) {
     const hopArtist = pool[Math.floor(Math.random() * pool.length)];
 
     if (hopArtist) {
-
-      if (lang === 'ar') {
-        queries.push(`${hopArtist} أغاني`);
-      }
-      else {
         queries.push(`${hopArtist} songs`);
         queries.push(`${hopArtist} official songs`);
-      }
     }
   }
 
@@ -584,11 +573,6 @@ function buildQueries(artist, songTitle, lang, escape, artistEscape) {
   }
 
   if (artist) {
-
-    if (lang === 'ar') {
-      queries.push(`${artist} أغاني`);
-    }
-
     queries.push(artist);
   }
 
