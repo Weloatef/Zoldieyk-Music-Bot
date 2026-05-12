@@ -275,15 +275,10 @@ const MUSIC_GRAPH = {
       'Mostafa Amar','Ruby',
       'Cairokee','Abu',
       'Ahmed Kamel','Tamer Ashour',
-      'Bahaa Sultan','Adam',
-      'Nancy Ajram','Elissa','Wael Kfoury',
+      'Bahaa Sultan','Nancy Ajram','Elissa','Wael Kfoury',
       'Assala','Carole Samaha','Nawal Al Zoghbi',
-      'Ragheb Alama','Majid Al Mohandis',
-      'Nassif Zeytoun','Saad Lamjarred',
-      'Balqees','Amal Maher',
-      'Abu','Adam','Yara',
-      'Fadl Shaker','Hussein Al Jasmi',
-      'Fayez Al Saeed','Ahlam','Mohamed Assaf','Tul8te'
+      'Ragheb Alama','Saad Lamjarred','Amal Maher',
+      'Abu','Hussein Al Jasmi','Ahlam','Tul8te',
     ],
 
     french_pop: [
