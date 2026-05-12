@@ -629,11 +629,11 @@ function buildQueries(artist, songTitle, lang, escape, artistEscape) {
       ]
     };
     
-    const pool = LANGUAGE_MUSIC_FALLBACK[lang] || LANGUAGE_MUSIC_FALLBACK.en;
+    const strain = this._languageStrain || lang;
 
-    const pick = pool[Math.floor(Math.random() * pool.length)];
+    const pool = LANGUAGE_MUSIC_FALLBACK[strain] || LANGUAGE_MUSIC_FALLBACK.en;
 
-    queries.push(pick);
+    queries.push(pool[Math.floor(Math.random() * pool.length)]);
   }
 
   if (artist) {
@@ -895,7 +895,13 @@ class MusicQueue {
 
       console.log(`[Autoplay] Step:${this._autoStep} Lang:${lang} Artist:"${artist}" Song:"${songTitle}" Escape:${forceEscape} ArtistEsc:${artistEscape} Anchor:"${anchor.title}"`);
 
-      const queries = buildQueries(normalizeArtistName(artist),songTitle,lang,forceEscape,artistEscape);
+      const queries = buildQueries(
+          normalizeArtistName(artist),
+          songTitle,
+          this._languageStrain || lang,
+          forceEscape,
+          artistEscape
+        );
 
 
       // ── Current song identity for dupe detection ─────────────────────────
@@ -983,7 +989,11 @@ class MusicQueue {
                   if (!ok) return false;
                 }
               }
-              else if (lang !== 'en' && candLang !== lang) {
+              const strain = this._languageStrain || lang;
+              const titleLang = detectLanguage(info.title + ' ' + (info.author || ''));
+
+              // HARD BLOCK if mismatch (except English fallback)
+              if (strain !== 'en' && titleLang !== strain) {
                 return false;
               }
             }
