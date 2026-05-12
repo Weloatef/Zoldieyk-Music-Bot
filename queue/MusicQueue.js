@@ -514,8 +514,7 @@ function buildQueries(artist, songTitle, lang, escape, artistEscape) {
     if (hopArtist) {
 
       if (lang === 'ar') {
-        queries.push(`${hopArtist} egypt rap`);
-        queries.push(`${hopArtist} egyptian trap`);
+        queries.push(`${hopArtist} أغنية`);
       }
       else {
         queries.push(`${hopArtist} songs`);
@@ -536,11 +535,7 @@ function buildQueries(artist, songTitle, lang, escape, artistEscape) {
 
     if (ambiguous || lang === 'ar') {
 
-      queries.push(`${artist} egypt rap`);
-      queries.push(`${artist} egyptian rap`);
-      queries.push(`${artist} arabic rap`);
-      queries.push(`${artist} trap mahragan`);
-      queries.push(`${artist} official songs`);
+      queries.push(`${artist} أغنية`);
     }
     else {
       queries.push(`${artist} songs`);
@@ -562,9 +557,7 @@ function buildQueries(artist, songTitle, lang, escape, artistEscape) {
     if (hopArtist) {
 
       if (lang === 'ar') {
-        queries.push(`${hopArtist} egypt rap`);
-        queries.push(`${hopArtist} egyptian trap`);
-        queries.push(`${hopArtist} arabic rap`);
+        queries.push(`${hopArtist} أغنية`);
       }
       else {
         queries.push(`${hopArtist} songs`);
@@ -580,7 +573,7 @@ function buildQueries(artist, songTitle, lang, escape, artistEscape) {
   if (!artist) {
 
     const genreMap = {
-      ar: 'egyptian rap trap',
+      ar: 'أكتر أغانى مشهورة فى مصر',
       he: 'songs Israel',
       ru: 'popular Russian songs',
       ja: 'popular Japanese songs',
@@ -598,7 +591,7 @@ function buildQueries(artist, songTitle, lang, escape, artistEscape) {
   if (artist) {
 
     if (lang === 'ar') {
-      queries.push(`${artist} egypt rap`);
+      queries.push(`${artist} أغنية`);
     }
 
     queries.push(artist);
