@@ -585,20 +585,55 @@ function buildQueries(artist, songTitle, lang, escape, artistEscape) {
 
   if (!artist) {
 
-    const genreMap = {
-      ar: 'egyptian rap trap',
-      he: 'songs Israel',
-      ru: 'popular Russian songs',
-      ja: 'popular Japanese songs',
-      ko: 'popular Korean songs',
-      es: 'latin pop hits',
-      fr: 'chansons françaises populaires',
-      de: 'deutsche Musik Pop',
-      it: 'musica italiana pop',
-      en: 'popular music hits',
-    };
+    const LANGUAGE_MUSIC_FALLBACK = {
+      ar: [
+        'egyptian rap songs',
+        'mahraganat egypt hits',
+        'arabic trap songs'
+      ],
 
-    queries.push(genreMap[lang] || genreMap.en);
+      en: [
+        'popular english songs 2025',
+        'top global hits playlist',
+        'viral english music mix'
+      ],
+
+      fr: [
+        'top french pop songs',
+        'chansons françaises populaires',
+        'french rap hits'
+      ],
+
+      es: [
+        'latin pop hits 2025',
+        'reggaeton popular songs',
+        'spanish music mix'
+      ],
+
+      ru: [
+        'popular russian songs',
+        'russian pop hits',
+        'rap russian playlist'
+      ],
+
+      ja: [
+        'japanese pop songs',
+        'jpop popular songs',
+        'anime music hits'
+      ],
+
+      ko: [
+        'kpop popular songs',
+        'korean pop hits',
+        'kpop playlist 2025'
+      ]
+    };
+    
+    const pool = LANGUAGE_MUSIC_FALLBACK[lang] || LANGUAGE_MUSIC_FALLBACK.en;
+
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+
+    queries.push(pick);
   }
 
   if (artist) {
@@ -622,6 +657,7 @@ class MusicQueue {
     this.textChannel = textChannel;
     this.player      = player;
     this.client      = client;
+    this._languageStrain = null;
     this.tracks      = [];
     this.history     = [];
     this.current     = null;
@@ -841,7 +877,15 @@ class MusicQueue {
 
       // Detect language from combined signals
       const langText = anchor.title + ' ' + (anchor.author || '') + ' ' + (anchor._rawQuery || '') + ' ' + artist;
-      const lang = detectLanguage(langText);
+      const detectedLang = detectLanguage(langText);
+
+      // lock language strain only once per session chain
+      if (!this._languageStrain || this._autoStep === 1) {
+        this._languageStrain = detectedLang;
+      }
+
+      const lang = this._languageStrain;
+      
 
       this._autoStep++;
       const forceEscape  = this._autoStep % 5 === 0;
