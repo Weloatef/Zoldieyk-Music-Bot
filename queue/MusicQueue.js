@@ -224,7 +224,7 @@ const MUSIC_GRAPH = {
       'Afroto','Batistuta','Lege-Cy','Shahyn',
       'Mousv','Abo El Anwar','Ziad Zaza',
       'El Joker','Double Zuksh','Madd',
-      'Mollo Tov','7liwa','L5VAV',
+      'Mollo Tov','7liwa','L5VAV','tul8te',
       'Moscow','Costa','A-K',
       'Ragz','Psycho M','Mido Zoher',
       'Big Moe','Alemond','Lil Baba',
@@ -270,7 +270,7 @@ const MUSIC_GRAPH = {
 
     arabic_pop: [
       'Amr Diab','Tamer Hosny','Hamaki',
-      'Sherine','Angham','Nancy Ajram',
+      'Sherine','Angham','tul8te','Nancy Ajram',
       'Elissa','Wael Kfoury','Ramy Sabry',
       'Tamer Ashour','Bahaa Sultan',
       'Mohamed Mounir','Ahmed Saad',
@@ -416,7 +416,19 @@ const ARTIST_ALIASES = {
   'عمرو دياب': 'amr diab',
   'تامر حسني': 'tamer hosny',
   'دريك': 'drake',
-  'كانييه': 'kanye west'
+  'كانييه': 'kanye west',
+  // IMPORTANT EGYPTIAN RAP FIXES
+  'moscow': 'moscow egypt rap',
+  'psycho': 'psycho m egypt rap',
+  'ragz': 'ragz egypt rap',
+  'mousv': 'mousv egypt rap',
+  'costa': 'costa egypt rap',
+  'batistuta': 'batistuta egypt rap',
+  'abyusif': 'abyusif egypt rap',
+  'marwan pablo': 'marwan pablo egypt rap',
+  'wegz': 'wegz egypt rap',
+  'afroto': 'afroto egypt rap',
+  'shahyn': 'shahyn egypt rap'
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -441,8 +453,25 @@ for (const genre of Object.values(MUSIC_GRAPH)) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function normalizeArtistName(name) {
+  
   const clean = (name || '').toLowerCase().trim();
   return ARTIST_ALIASES[clean] || clean;
+}
+const AMBIGUOUS_ARTISTS = new Set([
+  'moscow',
+  'psycho',
+  'ragz',
+  'costa',
+  'mousv',
+  'batistuta',
+  'joker',
+  'shahyn'
+]);
+
+function isAmbiguousArtist(name) {
+  const clean = (name || '').toLowerCase().trim();
+
+  return AMBIGUOUS_ARTISTS.has(clean);
 }
 
 function getSimilarArtists(artistName) {
@@ -472,35 +501,92 @@ function getSimilarArtists(artistName) {
 
 
 function buildQueries(artist, songTitle, lang, escape, artistEscape) {
+
   const queries = [];
 
+  const ambiguous = isAmbiguousArtist(artist);
+
+  // ─────────────────────────────────────────
+  // HARD ESCAPE MODE
+  // ─────────────────────────────────────────
+
   if (escape) {
-    // Hard escape: random similar artist from the pool
-    const pool      = getSimilarArtists(artist).filter(a => a.toLowerCase() !== (artist || '').toLowerCase());
+
+    const pool = getSimilarArtists(artist)
+      .filter(a => a.toLowerCase() !== (artist || '').toLowerCase());
+
     const hopArtist = pool[Math.floor(Math.random() * pool.length)] || pool[0];
-    if (hopArtist) queries.push(`${hopArtist} songs`);
+
+    if (hopArtist) {
+
+      if (lang === 'ar') {
+        queries.push(`${hopArtist} egypt rap`);
+        queries.push(`${hopArtist} egyptian trap`);
+      }
+      else {
+        queries.push(`${hopArtist} songs`);
+      }
+    }
+
     return queries.filter(Boolean);
   }
 
-  if (artist && !artistEscape) {
-    // PRIMARY: same artist — do NOT include song title to avoid same-song results
-    queries.push(`${artist} songs`);
-    queries.push(`${artist} official songs`);
-  }
+  // ─────────────────────────────────────────
+  // SAME ARTIST SEARCH
+  // ─────────────────────────────────────────
 
-  if (artistEscape) {
-    // Random hop to a similar artist — different every call, feels organic
-    const pool      = getSimilarArtists(artist).filter(a => a.toLowerCase() !== (artist || '').toLowerCase());
-    const hopArtist = pool[Math.floor(Math.random() * pool.length)];
-    if (hopArtist) {
-      queries.push(`${hopArtist} songs`);
-      queries.push(`${hopArtist} official songs`);
+  if (artist && !artistEscape) {
+
+    // VERY IMPORTANT FIX
+    // Ambiguous artists MUST include egypt/arab context
+
+    if (ambiguous || lang === 'ar') {
+
+      queries.push(`${artist} egypt rap`);
+      queries.push(`${artist} egyptian rap`);
+      queries.push(`${artist} arabic rap`);
+      queries.push(`${artist} trap mahragan`);
+      queries.push(`${artist} official songs`);
+    }
+    else {
+      queries.push(`${artist} songs`);
+      queries.push(`${artist} official songs`);
     }
   }
 
+  // ─────────────────────────────────────────
+  // ARTIST ESCAPE MODE
+  // ─────────────────────────────────────────
+
+  if (artistEscape) {
+
+    const pool = getSimilarArtists(artist)
+      .filter(a => a.toLowerCase() !== (artist || '').toLowerCase());
+
+    const hopArtist = pool[Math.floor(Math.random() * pool.length)];
+
+    if (hopArtist) {
+
+      if (lang === 'ar') {
+        queries.push(`${hopArtist} egypt rap`);
+        queries.push(`${hopArtist} egyptian trap`);
+        queries.push(`${hopArtist} arabic rap`);
+      }
+      else {
+        queries.push(`${hopArtist} songs`);
+        queries.push(`${hopArtist} official songs`);
+      }
+    }
+  }
+
+  // ─────────────────────────────────────────
+  // NO ARTIST FALLBACK
+  // ─────────────────────────────────────────
+
   if (!artist) {
+
     const genreMap = {
-      ar: 'اغاني عربية رومانسية',
+      ar: 'egyptian rap trap',
       he: 'songs Israel',
       ru: 'popular Russian songs',
       ja: 'popular Japanese songs',
@@ -511,11 +597,20 @@ function buildQueries(artist, songTitle, lang, escape, artistEscape) {
       it: 'musica italiana pop',
       en: 'popular music hits',
     };
+
     queries.push(genreMap[lang] || genreMap.en);
   }
 
-  if (artist) queries.push(artist);
-  return queries.filter(Boolean);
+  if (artist) {
+
+    if (lang === 'ar') {
+      queries.push(`${artist} egypt rap`);
+    }
+
+    queries.push(artist);
+  }
+
+  return [...new Set(queries)].filter(Boolean);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -824,7 +919,51 @@ class MusicQueue {
             // Language check (strict pass only, skipped on relaxed pass)
             if (strict) {
               const candLang = detectLanguage(info.title + ' ' + (info.author || ''));
-              if (lang !== 'en' && candLang !== lang) return false;
+
+              // Arabic autoplay should NEVER drift into Russian/Kpop/etc
+              if (lang === 'ar') {
+
+                if (candLang !== 'ar') {
+
+                  const low = (info.title + ' ' + info.author).toLowerCase();
+
+                  // Allow only known Egyptian artists
+                  const egyptHints = [
+                    'wegz','abyusif','marwan','pablo','afroto','shahyn',
+                    'batistuta','mousv','zaza','mahragan','egypt',
+                    'كايرو','ويجز','ابيوسف','مروان','عفرتو'
+                  ];
+
+                  const ok = egyptHints.some(x => low.includes(x));
+
+                  if (!ok) return false;
+                }
+              }
+              else if (lang !== 'en' && candLang !== lang) {
+                return false;
+              }
+            }
+
+            const badForeignPatterns = [
+              'moskau',
+              'stranger in moscow',
+              'babymonster',
+              'kpop',
+              'dschinghis',
+              'russian song',
+              'slavic',
+              'anime opening',
+              'nightcore',
+              'phonk remix'
+            ];
+
+            if (lang === 'ar') {
+
+              const low = (info.title + ' ' + info.author).toLowerCase();
+
+              if (badForeignPatterns.some(x => low.includes(x))) {
+                return false;
+              }
             }
 
             return true;
