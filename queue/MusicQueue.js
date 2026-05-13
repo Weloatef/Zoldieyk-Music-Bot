@@ -231,7 +231,7 @@ const MUSIC_GRAPH = {
       'Mollo Tov','7liwa','L5VAV','tul8te',
       'Costa','A-K','Ragz','Psycho M',
       'Big Moe','Lil Baba','Arsenik','Fares Sokar',
-      'Ramy Donjewan','Abo El Raw','Marwan Younis'
+      'Ramy Donjewan','Abo El Raw','Marwan Younis','Youssif Elashry'
     ],
 
     egyptian_mahraganat: [
