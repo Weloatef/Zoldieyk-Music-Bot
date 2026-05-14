@@ -229,10 +229,10 @@ const MUSIC_GRAPH = {
       'Mousv','Abo El Anwar','Ziad Zaza',
       'El Joker','Double Zuksh',
       'Mollo Tov','L5VAV','tul8te','Ragz','Psycho M',
-      'Big Moe','Lil Baba','Arsenik','Nasser','Youssif Elashry','Tommy Gun'
+      'Big Moe','Lil Baba','Arsenik','Nasser','Youssif Elashry','Tommy Gun','Zad'
     ],
 
-    Sycoteers: ['زاد','Lege-Cy','Cairokee','Abyusif','Wegz','Marwan Pablo','Marwan Moussa',
+    Sycoteers: ['Zad','Lege-Cy','Cairokee','Abyusif','Wegz','Marwan Pablo','Marwan Moussa',
       'Afroto','Youssif Elashry','Nasser','tul8te','Shahyn','Ziad Zaza','Tommy Gun',
       'حودة بندق','حمو الطيخا','Muslim','Essam Sasa','Muslim','عنبه','شحتة كاريكا','الدخلاوية','إسلام كابونجا','عصام صاصا',
       'George Wassouf','Amr Diab','Hamaki','Mohamed Mounir','Sherine','Mohamed Fouad','Tamer Ashour','Nancy Ajram','Elissa','Assala',
@@ -246,8 +246,7 @@ const MUSIC_GRAPH = {
       'Sadat','Fifty','Ahmed Moza',
       'Ali Qaddoura','حمو الطيخا','عنبه','كزبرة',
       'شحتة كاريكا','الدخلاوية','المدفعجية',
-      'رضا البحراوي','حسن البرنس',
-      'حودة بندق','إسلام كابونجا',
+      'رضا البحراوي','حسن البرنس','إسلام كابونجا',
       'محمود الليثي','محمود معتمد','عصام صاصا','علي قدورة','سادات'
     ]
   },
