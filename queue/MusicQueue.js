@@ -232,7 +232,7 @@ const MUSIC_GRAPH = {
       'Big Moe','Lil Baba','Arsenik','Nasser','Youssif Elashry','Tommy Gun'
     ],
 
-    Sycoteers: ['Zad','Lege-Cy','Cairokee','Abyusif','Wegz','Marwan Pablo','Marwan Moussa',
+    Sycoteers: ['زاد','Lege-Cy','Cairokee','Abyusif','Wegz','Marwan Pablo','Marwan Moussa',
       'Afroto','Youssif Elashry','Nasser','tul8te','Shahyn','Ziad Zaza','Tommy Gun',
       'حودة بندق','حمو الطيخا','Muslim','Essam Sasa','Muslim','عنبه','شحتة كاريكا','الدخلاوية','إسلام كابونجا','عصام صاصا',
       'George Wassouf','Amr Diab','Hamaki','Mohamed Mounir','Sherine','Mohamed Fouad','Tamer Ashour','Nancy Ajram','Elissa','Assala',
