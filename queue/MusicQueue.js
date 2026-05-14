@@ -236,8 +236,8 @@ const MUSIC_GRAPH = {
       'Afroto','Youssif Elashry','Nasser','tul8te','Shahyn','Ziad Zaza','Tommy Gun',
       'حودة بندق','حمو الطيخا','Muslim','Essam Sasa','Muslim','عنبه','شحتة كاريكا','الدخلاوية','إسلام كابونجا','عصام صاصا',
       'George Wassouf','Amr Diab','Hamaki','Mohamed Mounir','Sherine','Mohamed Fouad','Tamer Ashour','Nancy Ajram','Elissa','Assala',
-      'Saad Lamjarred','Hussein Al Jasmi','Wael Jassar','Hakim','Ramy Sabry','Ahmed Saad','Bahaa Sultan','Ahmed Kamel'
-      
+      'Saad Lamjarred','Hussein Al Jasmi','Wael Jassar','Hakim','Ramy Sabry','Ahmed Saad','Bahaa Sultan','Ahmed Kamel',
+      'Houda Bondoq','Houda'
     ],
 
     egyptian_mahraganat: [
