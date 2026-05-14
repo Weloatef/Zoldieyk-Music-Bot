@@ -225,25 +225,30 @@ const MUSIC_GRAPH = {
 
     egyptian_trap: [
       'Wegz','Marwan Pablo','Abyusif','Marwan Moussa',
-      'Afroto','Batistuta','Lege-Cy','Shahyn',
+      'Afroto','Lege-Cy','Shahyn',
       'Mousv','Abo El Anwar','Ziad Zaza',
-      'El Joker','Double Zuksh','Madd',
-      'Mollo Tov','7liwa','L5VAV','tul8te',
-      'Costa','A-K','Ragz','Psycho M',
-      'Big Moe','Lil Baba','Arsenik','Fares Sokar',
-      'Ramy Donjewan','Abo El Raw','Marwan Younis','Youssif Elashry'
+      'El Joker','Double Zuksh',
+      'Mollo Tov','L5VAV','tul8te','Ragz','Psycho M',
+      'Big Moe','Lil Baba','Arsenik','Nasser','Youssif Elashry','Tommy Gun'
+    ],
+
+    Sycoteers: ['Zad','Lege-Cy','Cairokee','Abyusif','Wegz','Marwan Pablo','Marwan Moussa',
+      'Afroto','Youssif Elashry','Nasser','tul8te','Shahyn','Ziad Zaza','Tommy Gun',
+      'حودة بندق','حمو الطيخا','Muslim','Essam Sasa','Muslim','عنبه','شحتة كاريكا','الدخلاوية','إسلام كابونجا','عصام صاصا',
+      'George Wassouf','Amr Diab','Hamaki','Mohamed Mounir','Sherine','Mohamed Fouad','Tamer Ashour','Nancy Ajram','Elissa','Assala',
+      'Saad Lamjarred','Hussein Al Jasmi','Wael Jassar','Hakim','Ramy Sabry','Ahmed Saad','Bahaa Sultan','Ahmed Kamel'
+      
     ],
 
     egyptian_mahraganat: [
       'Hassan Shakosh','Hamo Bika','Oka & Ortega',
-      'Essam Sasa','Muslim','Filo',
+      'Essam Sasa','Muslim','Filo','Fares Sokar',
       'Sadat','Fifty','Ahmed Moza',
       'Ali Qaddoura','حمو الطيخا','عنبه','كزبرة',
       'شحتة كاريكا','الدخلاوية','المدفعجية',
       'رضا البحراوي','حسن البرنس',
       'حودة بندق','إسلام كابونجا',
-      'محمود الليثي','محمود معتمد','عصام صاصا',
-      'توليت','علي قدورة','سادات'
+      'محمود الليثي','محمود معتمد','عصام صاصا','علي قدورة','سادات'
     ]
   },
 
@@ -482,6 +487,9 @@ const ARTIST_ALIASES = {
   'تامر حسني': 'tamer hosny',
   'دريك': 'drake',
   'كانييه': 'kanye west',
+  'حودة بندق':'Houda Bondoq',
+  'حمو الطيخا':'Hamo Taikha',
+  'عنبه':'3enbah',
   // IMPORTANT EGYPTIAN RAP FIXES
   'moscow': 'moscow egypt rap',
   'psycho': 'psycho m egypt rap',
